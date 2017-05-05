@@ -1,0 +1,36 @@
+DATOS
+	fichero		"salida"
+	mensaje		"¡Hola mundo!\n"
+CODIGO
+	; redireccionamos la salida estándar
+	cargar_i @1, #14	; cerramos el fichero 1 (salida estandar)
+	cargar_i @2, #1
+	apilar @2
+	apilar @1
+	ser_sis
+
+	cargar_i @1, #12	; creamos un nuevo fichero
+	cargar_i @2, fichero
+	cargar_i @3, #0
+	apilar @3
+	apilar @2
+	apilar @1
+	ser_sis
+
+
+	; inicializamos los valores de los registros
+	cargar_i @1, #31	; código de llamada al sistema
+	cargar_i @2, mensaje	; el mensaje
+	cargar_i @3, #1		; desplazamiento para recorrer la cadena
+
+bucle	cargar8 @4, @2
+	saltar0 @4, fin
+
+	apilar @4	; llamada al sistema
+	apilar @1
+	ser_sis
+
+	sumar @2, @3, @2
+	saltar bucle
+
+fin

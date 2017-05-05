@@ -1,0 +1,380 @@
+\chapter{El compilador}
+
+
+\section{Introducción}
+
+El compilador es más exactamente un ensamblador, ya que lo que hace es
+traducir instrucciones del lenguaje ensamblador
+(ver Sección~\ref{Sec: Arquitectura}) a las instrucciones del código máquina
+que el procesador entiende.
+Además, el resultado es un fichero con un formato dado, en concreto el
+formato 99.
+
+El ensamblador está implementado por la clase \id{Ensamblador}.
+\marginnote{Ver include/ensambla.h}
+En las siguientes secciones estudiaremos por separado cada una de las partes
+de que consta: analizador léxico, analizador sintáctico, analizador semántico
+y generador de código.
+
+\subsection{Dos pasadas}
+El lenguaje permite utilizar un identificador en una instrucción y declararlo
+en un lugar posterior.
+Esto es necesario para poder hacer saltos hacia delante, pero complica el
+compilador.
+La solución adoptada consiste en dar dos pasadas al código fuente.
+
+En la primera se genera cierta información interna que se utilizará en la
+segunda.
+En la segunda pasada se genera el código.
+En la Figura~\ref{Fig: Ensamblador} puedes ver un dibujo que muestra la
+relación entre las distintas partes funcionales y la/s pasada/s en las que
+intervienen.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/ensambla.eps}
+	\caption{Esquema del ensamblador}
+	\label{Fig: Ensamblador}
+\end{figure}
+
+En el dibujo, aparecen duplicadas las distintas partes del ensamblador,
+eso no significa que hayan dos de cada, está dibujado así para ver mejor
+las pasadas.
+
+Como se puede observar, el analizador léxico genera \emph{tokens} a medida
+que el analizador sintáctico se los pide. 
+También se ve que en ambas pasadas intervienen los analizadores léxico y
+sintáctico, los cuales realizan exactamente la misma tarea en ambas ocasiones.
+Por el contrario, el analizador semántico realiza operaciones distintas en
+cada pasada, lo veremos con detalle más adelante.
+El generador de código solo interviene en la última pasada, cuando ya está
+disponible toda la información que necesita.
+El atributo \id{pasada} indica en qué pasada se encuentra el análisis.
+
+El análisis empieza en el método público \id{analizar}, que viene a ser el
+\emph{main} del compilador.
+\marginnote{Ver entorno/ensambla.cpp}
+Es recomendable echarle un vistazo al código, ya que, al menos en este
+caso, está bien comentado.
+
+\subsection{Gestión de errores}
+La gestión de errores de este compilador es extremadamente sencilla.
+Cuando se detecta un error, da igual de qué tipo sea, se genera el error
+y se detiene la compilación.
+Es decir, no existe recuperación de errores, por lo tanto solo se puede
+detectar uno cada vez.
+Además, si el error se produjo en la segunda pasada, se borra el código
+objeto generado.
+
+\section{Analizador Léxico}
+\subsection{Especificación léxica}
+\subsubsection{Blancos}
+Consideramos blancos al espacio, los tabuladores horizontal y vertical, el
+retorno de carro y el ``form-feed''.
+Dichos caracteres se ignoran, no devuelven ningún token ni tienen ninguna
+acción asociada.
+Su expresión regular es:
+\begin{quote}
+	\verb|\ \r\t\v\f|
+\end{quote}
+
+\subsubsection{Comentarios}
+Al igual que los blancos, los comentarios también se ignoran.
+Comienzan por un punto y coma y terminan con una nueva línea, su expresión
+regular es:
+\begin{quote}
+	\verb|;.|$^*\backslash$ n
+\end{quote}
+La nueva línea tan solo indica cuando termina el comentario, no está
+incluida en la expresión.
+
+\subsubsection{Nueva línea}
+La nueva línea se emplea como un separador en el nivel sintáctico, por ello
+se devuelve el token \id{NUEVA\_LINEA}.
+Comienza siempre por una nueva línea y traga todos los blancos, comentarios y
+nuevas líneas que le sigan, hasta que encuentra un carácter distinto.
+Su expresión regular es:
+\begin{quote}
+	\verb!\n([\ \n\r\t\v\f]|(;.!$^*$\verb!\n))!$^*$
+\end{quote}
+
+\subsubsection{Final de fichero}
+Como ya habrás imaginado, este token (\id{FINAL\_FICHERO}) se emite cuando
+se termina de leer el fichero.
+
+\subsubsection{Palabras clave}
+La Tabla~\ref{Tab: Palabras Clave} muestra la lista de palabras clave del
+ensamblador.
+\begin{table}
+\center
+\begin{tabular}{lll|lll}
+\emph{lexema}	&	\emph{token}	&	\emph{valor}	&
+\emph{lexema}	&	\emph{token}	&	\emph{valor}	\\
+\hline
+\er{datos}	&	\id{DATOS}	&			&
+\er{codigo}	&	\id{CODIGO}	&			\\
+\er{sumar}	&	\id{I\_RRR}	&	\id{SUMAR}	&
+\er{restar}	&	\id{I\_RRR}	&	\id{RESTAR}	\\
+\er{and}	&	\id{I\_RRR}	&	\id{AND}	&
+\er{or}		&	\id{I\_RRR}	&	\id{OR}		\\
+\er{copiar}	&	\id{I\_RR}	&	\id{COPIAR}	&
+\er{not}	&	\id{I\_RR}	&	\id{NOT}	\\
+\er{cargar32}	&	\id{I\_RR}	&	\id{CARGAR32}	&
+\er{guardar32}	&	\id{I\_RR}	&	\id{GUARDAR32}	\\
+\er{cargar8}	&	\id{I\_RR}	&	\id{CARGAR8}	&
+\er{guardar8}	&	\id{I\_RR}	&	\id{GUARDAR8}	\\
+\er{cargar\_i}	&	\id{I\_RI}	&	\id{CARGAR\_I}	&
+\er{guardar\_i}	&	\id{I\_RI}	&	\id{GUARDAR\_I}	\\
+\er{apilar}	&	\id{I\_R}	&	\id{APILAR}	&
+\er{desapilar}	&	\id{I\_R}	&	\id{DESAPILAR}	\\
+\er{saltar}	&	\id{I\_I}	&	\id{SALTAR}	&
+\er{saltar0}	&	\id{I\_RI}	&	\id{SALTAR0}	\\
+\er{saltarp}	&	\id{I\_RI}	&	\id{SALTARP}	&
+\er{saltarn}	&	\id{I\_RI}	&	\id{SALTARN}	\\
+\er{nop}	&	\id{I\_}	&	\id{NOP}	&
+\er{ser\_sis}	&	\id{I\_}	&	\id{SER\_SIS}	\\
+\end{tabular}
+	\caption{Palabras Clave.}
+	\label{Tab: Palabras Clave}
+\end{table}
+
+Las palabras clave, igual que los identificadores (ver más adelante), no son
+sensibles a mayúsculas/minúsculas.
+Es lo mismo escribir \er{datos} que \er{DaToS}.
+
+Como se puede observar en la tabla, la mayoría de las palabras claves son
+instrucciones del lenguaje ensamblador, las cuales se agrupan (mediante el
+token) según su formato, es decir, según su número y tipo de operandos.
+Sin operandos, con uno, dos o tres registros, con un dato inmediato
+o con un registro y un dato inmediato.
+Dentro de cada grupo el \emph{valor} identifica de qué instrucción se trata;
+\emph{valor} almacena el código de instrucción que el procesador entiende.
+
+
+\subsubsection{Identificadores}
+Los identificadores se utilizan para especificar variables y posiciones
+dentro del código.
+Cuando se detecta un identificador se emite el token \id{ID}.
+Su expresión regular, exceptuando las palabras clave, es:
+\begin{quote}
+	\verb [a-zA-Z][a-zA-Z0-9_] $^*$
+\end{quote}
+
+\subsubsection{Literales numéricos}
+Se utilizan para inicializar las variables y para los datos inmediatos.
+El token que se emite es \id{LITERAL\_NUMERICO}.
+Su expresión regular es:
+\begin{quote}
+	\verb #[0-9] $^+$
+\end{quote}
+
+En el atributo \emph{valor} se almacena el valor numérico del literal.
+
+\subsubsection{Literales cadena}
+Se utilizan para inicializar las variables.
+El token que se emite es \id{CADENA}.
+Su expresión regular es:
+\begin{quote}
+	\verb ". $^*$\verb|"|
+\end{quote}
+
+En el atributo \emph{lexema} se almacena la cadena, sin las comillas.
+
+\subsubsection{Registros}
+Se utilizan para especificar los operandos de tipo registro.
+El token que se emite es \id{REGISTRO}.
+Su expresión regular es:
+\begin{quote}
+	\verb|@[0-1][0-5]?|
+\end{quote}
+
+En el atributo \emph{valor} se almacena el número del registro.
+
+\subsubsection{Coma}
+Se utiliza para separar los operandos.
+El token que se emite es \id{COMA}.
+Su expresión regular es:
+\begin{quote}
+	\er{,} 
+\end{quote}
+
+
+\subsection{Autómata finito determinista}
+Lo encontrarás en la Figura~\ref{Fig: AFD}.
+
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/afd.eps}
+	\caption{Autómata Finito Determinista}
+	\label{Fig: AFD}
+\end{figure}
+
+\subsection{Cuestiones de implementación}
+El tipo enumerado \id{Tokens} define los tokens que existen.
+\marginnote{Ver include/ensambla.h}
+El método \id{siguienteToken} implementa el analizador léxico.
+Este método devuelve un token cada vez que se le llama.
+Además, el último token leído se guarda en el atributo \id{token}, su lexema
+en \id{lexema} y, dependiendo del token, \id{valor} puede almacenar más
+información acerca del token.
+
+Para estudiar este método lo mejor es leer el código con el dibujo del AFD
+(Figura~\ref{Fig: AFD}) al lado, ya que lo único que hace es implementar dicho
+autómata.
+Básicamente es un bucle infinito del que se sale cuando se encuentra un token.
+Los arcos del autómata quedan representados por estructuras condicionales,
+primero se lee un carácter del código fuente y dependiendo de qué carácter
+se trate se pasa a analizar un subgrafo u otro.
+Mejor dale un vistazo al código.
+
+\subsubsection{Palabras reservadas}
+Una palabra reservada se define mediante la clase \id{PalabraClave}.
+Cada palabra reservada tiene un \emph{token} asociado, un lexema (que debe
+estar siempre en mayúsculas) y opcionalmente un valor.
+La variable \id{palabrasClave} es un vector con una entrada para cada
+palabra reservada.
+\marginnote{Ver entorno/ensambla.cpp}
+La constante \id{N\_PALABRAS\_CLAVE} indica el número de palabras reservadas
+que existen. 
+
+\subsubsection{Número de línea}
+Además, el método \id{siguienteToken} lleve la cuenta del número de línea que
+se está analizando.
+El número de línea actual se guarda en el atributo \id{linea}.
+Así, cuando se produzca un error, sabremos en qué línea del código fuente se
+produjo.
+
+\section{Analizador sintáctico}
+\subsection{Especificación sintáctica}
+En la Tabla~\ref{Tab: Sintaxis} encontrarás la especificación sintáctica.
+Los símbolos terminales están en negrita y empiezan por minúscula, se
+corresponden con los \emph{tokens} del nivel léxico (\te{nl} es una
+abreviatura de \te{nueva\_linea}).
+Los símbolos no terminales empiezan por mayúscula.
+
+\begin{table}
+\begin{tabular}{lll}
+\nt{Programa} & $\rightarrow$
+	 & \te{nl}\te{datos}\te{nl}\nt{Datos}\te{codigo}\te{nl}\nt{Codigo}
+	   \te{final\_fichero} $\mid$\\
+	&& \te{datos}\te{nl}\nt{Datos}\te{codigo}\te{nl}\nt{Codigo}
+	   \te{final\_fichero} $\mid$\\
+	&& \te{nl}\te{codigo}\te{nl}\nt{Codigo}\te{final\_fichero} $\mid$\\
+	&& \te{codigo}\te{nl}\nt{Codigo}\te{final\_fichero}\\
+\nt{Datos} & $\rightarrow$
+	 & \nt{LineaDatos}\te{nl}\nt{Datos} $\mid$\\
+	&& $\lambda$\\
+\nt{LineaDatos} & $\rightarrow$
+	 & \te{id}\nt{Constante}\\
+\nt{Constante} & $\rightarrow$
+	 & \te{cadena} $\mid$ \te{literal\_numérico}\\
+\nt{Codigo} & $\rightarrow$
+	 & \nt{LineaCodigo}\te{nl}\nt{Codigo} $\mid$\\
+	&& \nt{LineaCodigo}\te{nl} $\mid$\\
+	&& \nt{LineaCodigo}\\
+\nt{LineaCodigo} & $\rightarrow$
+	 & \te{id}\nt{Instruccion} $\mid$\\
+	 & \te{id} $\mid$\\
+	&& \nt{Instruccion}\\
+\nt{Instrucción} & $\rightarrow$
+	 & \te{i\_} $\mid$\\
+	&& \te{i\_r}\te{registro} $\mid$\\
+	&& \te{i\_rr}\te{registro}\te{coma}\te{registro} $\mid$\\
+	&& \te{i\_rrr}\te{registro}\te{coma}\te{registro}\te{coma}
+	   \te{registro} $\mid$\\
+	&& \te{i\_i}\te{literal\_numérico} $\mid$\\
+	&& \te{i\_i}\te{id} $\mid$\\
+	&& \te{i\_ri}\te{registro}\te{coma}\te{literal\_numérico}\\
+	&& \te{i\_ri}\te{registro}\te{coma}\te{id}\\
+\end{tabular}
+	\caption{Especificación sintáctica}
+	\label{Tab: Sintaxis}
+\end{table}
+
+Como puedes observar, esta no es una gramática LL(1).
+El lenguaje es tan sencillo que resulta fácil de implementar directamente la
+gramática incontextual.
+ 
+\subsection{Cuestiones de implementación}
+Para cada símbolo no terminal existe un método, con el mismo nombre, que lo
+implementa.
+Básicamente, lo que hacen estos métodos es recorrer la parte derecha de la
+producción.
+
+Si a continuación hay un símbolo terminal, se lee el siguiente token y si
+es el esperado se sigue con el análisis, si es otro se produce un error.
+Si a continuación hay un símbolo no terminal se llama al método que lo
+implementa.
+
+Como es una gramática incontextual puede suceder que en un momento dado haya
+más de una posibilidad (por ejemplo, dos símbolos no terminales distintos),
+entonces se lee un token, y dependiendo de qué token se trate se hace una
+cosa u otra.
+
+Estos métodos, además de implementar el analizador sintáctico, implementan
+el analizador semántico y el generador de código.
+
+\section{Analizador semántico}
+\subsection{Especificación semántica}
+Las comprobaciones semánticas que realiza el compilador son:
+\begin{enumerate}
+\item No se puede declarar un identificador más de una vez.
+\item No puede referenciarse ningún identificador que no esté declarado; es
+  indiferente que la declaración sea anterior o posterior a su referencia.
+\end{enumerate}
+
+No se distingue entre identificadores que representan variables o posiciones
+dentro del código.
+
+\subsection{Cuestiones de implementación}
+El analizador semántico interviene en las dos pasadas que da el ensamblador
+al código fuente, pero hace una cosa distinta en cada una de ellas.
+
+En la primera pasada recoge información acerca de los identificadores y
+comprueba la regla semántica número 1.
+Dicha información se guarda en el vector \id{ids}, cuyas entradas son
+instancias de la clase \id{Id}.
+\marginnote{Ver include/ensambla.h}
+En concreto, la información que se almacena es el lexema del identificador
+y la dirección de memoria que referencia. 
+El atributo \id{direccion} indica la dirección actual de memoria, este
+atributo es incrementado por el analizador semántico cada vez que encuentra
+una instrucción o la declaración de una variable; se utiliza para saber qué
+dirección asociar a los identificadores.
+
+El método \id{nuevoId} es el que se encarga de guardar los identificadores en
+el vector y de incrementar el atributo \id{nIds}, el cual guarda el número de
+identificadores almacenados; también es este método el que realiza la
+comprobación semántica número 1.
+
+En la segunda pasada se comprueba la regla semántica número 2.
+Dicha comprobación la realiza el método \id{obtenerDir}, el cual devuelve la
+dirección asociada a un identificador, o genera un error si el identificador
+no existe.
+Este método es utilizado por el generador de código.
+
+\section{Generador de código}
+La generación de código es muy sencilla ya que se trata de un lenguaje
+ensamblador.
+
+\subsubsection{Cabecera}
+El código generado sigue el formato de fichero ejecutable 99, eso significa
+que lo primero que se debe escribir en el fichero es la cabecera.
+Esa información está formada por el ``número mágico'' que autentifica al
+fichero, la dirección de inicio del programa, contenida en el atributo
+\id{dirInicio}, y el tamaño de la pila que es siempre de 128.
+
+\subsubsection{Área de datos}
+Después de la cabecera comienza la imagen que se cargará en memoria.
+Esta empieza por el área de datos, los cuales son inicializados por el
+generador de código.
+
+\subsubsection{Código}
+Y después de los datos, el código.
+Cada instrucción en ensamblador se traduce directamente a código máquina.
+Al final se añaden siempre tres instrucciones que lo que hacen es terminar
+la ejecución del hilo, esas instrucciones en ensamblador son:
+\begin{quote}
+\begin{verbatim}
+	cargar_i @0, #3
+	apilar @0
+	ser_sis
+\end{verbatim}
+\end{quote}

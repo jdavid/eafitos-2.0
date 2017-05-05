@@ -1,0 +1,9 @@
+CODIGO
+	cargar_i @1, #30
+	apilar @1
+	ser_sis
+
+	apilar @0
+	cargar_i @1, #31
+	apilar @1
+	ser_sis

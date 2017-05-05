@@ -1,0 +1,130 @@
+\chapter{Introducción}
+
+\section{Diseño global}
+La diferencia más importante de Eafitos con los sistemas operativos reales es
+el hecho de que Eafitos se ejecuta sobre una máquina virtual en lugar de
+directamente sobre el hardware.
+Esto simplifica enormemente las cosas y tiene otras consecuencias como ahora
+veremos.
+
+Los núcleos de los sistemas operativos reales suelen estar escritos en C y en
+lenguaje ensamblador.
+Entonces, hay que compilar el código fuente para generar el binario que se
+ejecutará en la máquina.
+De este modo, el núcleo es un programa más (aunque con unas características
+particulares) que, igual que los programas de usuario, reside en la memoria
+del sistema y cuyas instrucciones de código máquina ejecuta el procesador.
+
+En Eafitos esto no es así.
+Eafitos está completamente escrito en C++ y se ejecuta sobre un sistema
+operativo anfitrión (DOS o UNIX).
+Así, mientras que los programas de usuario residen en la memoria virtual de
+la máquina virtual y son ejecutados por su procesador, el núcleo y el resto
+de herramientas (compilador, intérprete de comandos,...) se ejecutan
+directamente sobre el sistema operativo anfitrión.
+Hacerlo como en la realidad, es decir, escribir el núcleo (y el resto de
+herramientas) en un lenguaje dado y compilarlo para generar código máquina
+que el procesador virtual pudiese entender, hubiese tenido un coste tremendo
+ya que hubiese implicado crear un compilador muchísimo más complejo o escribir
+el código en ensamblador.
+
+La Figura~\ref{Fig: Eafitos} muestra un esquema en el que nos apoyaremos para
+acabar de entender el diseño de Eafitos.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/eafitos.eps}
+	\caption{Diseño global de Eafitos.}
+	\label{Fig: Eafitos}
+\end{figure}
+
+En el esquema, los programas de usuario están dibujados en el interior de la
+máquina virtual para subrayar el hecho de que residen en la memoria virtual.
+El núcleo de Eafitos es el encargado de gestionar la máquina virtual y de
+proporcionar a los programas de usuario una serie de facilidades.
+La flecha que va de la máquina virtual al núcleo hace referencia a las
+llamadas al sistema y a la interrupción de reloj (ver
+Capítulo~\ref{Cap: Nucleo}).
+
+Tres de las cuatro partes de Eafitos utilizan recursos directamente del
+sistema operativo anfitrión.
+El entorno y el intérprete de comandos lo hacen para interactuar con el
+usuario, el compilador para presentar mensajes de error o de éxito y la
+máquina virtual para implementar sus dispositivos.
+
+El usuario interactúa directamente tan solo con el entorno (menús iniciales
+para la gestión de los discos) y el intérprete de comandos.
+Es pues el intérprete de comandos el que se ejecuta la mayor parte del
+tiempo, el control solo pasa a la máquina virtual cuando se ejecuta algún
+programa.
+
+\section{Estructura del código fuente}
+Dentro del directorio \emph{programa} tenemos el código fuente que se
+distribuye en los siguientes directorios:
+\begin{itemize}
+\item \emph{include} Todos los ficheros de cabecera residen en este directorio.
+\item \emph{mv} Aquí están los ficheros de implementación de la máquina
+	virtual.
+\item \emph{nucleo} Aquí están los ficheros de implementación del núcleo.
+	Este directorio tiene, además, los siguientes subdirectorios:
+	\begin{itemize}
+	\item \emph{es} Aquí encontrarás los ficheros que implementan la
+		entrada/salida.
+	\item \emph{sf} Aquí residen los ficheros que implementan el sistema
+		de ficheros.
+	\item \emph{ejec} Aquí encontrarás los ficheros que implementan los
+		formatos de ficheros ejecutables.
+	\end{itemize}
+\item \emph{entorno} En este directorio están los ficheros que implementan
+	el intérprete de comandos, el compilador y el sistema de menús para
+	la gestión de los discos.
+\end{itemize}
+
+El fichero que contiene la función \id{main} es \emph{programa/eafitos2.cpp}.
+
+
+\section{Cuestiones de implementación}
+
+\subsection{Implementación de las clases principales}
+La Figura~\ref{Fig: Eafitos} muestra a Eafitos dividido en cuatro partes,
+aunque podemos considerar que solo hay tres si unimos el compilador al
+entorno y al intérprete de comandos, ya que así es como está implementado.
+
+Disponemos de tres clases principales: \id{MaqVirtual,} \id{Nucleo} y
+\id{Entorno} cuyos miembros (atributos y métodos) son estáticos y públicos.
+Es aconsejable que mires los ficheros de cabecera donde están definidos estas
+tres clases: \emph{mv.h}, \emph{nucleo.h} y \emph{entorno.h}.
+
+Estas clases, fundamentalmente hacen la función de contenedoras de otros
+objetos, los cuales pueden ser referenciados con, por ejemplo,
+\id{Nucleo::xxx.yyy().}
+De hecho, el código contiene muchas de estas referencias.
+Es algo así como si fueran variables globales, esto simplifica mucho el
+código.
+
+Además, estas clases principales contienen, entre otras cosas, código de
+inicialización y terminación que se estudiará con más detalle en los próximos
+capítulos.
+
+\subsubsection{La función \id{main}}
+Mira también la función \id{main} en el fichero \emph{eafitos2.cpp}.
+Todo lo que hace es iniciar la máquina virtual y en núcleo, ceder el control
+al entorno y terminar el núcleo y la máquina virtual.
+
+\subsection{Gestión de errores}
+En principio la gestión de errores estaba implementada como se suele hacer en
+C, haciendo que los métodos devolvieran un código de error (normalmente -1)
+cuando se detectase un error, y evaluando el código devuelto por los métodos.
+
+Pero más adelante decidí utilizar los mecanismos de gestión de excepciones de
+C++ (\id{throw,} \id{try} y \id{catch}) porque facilitan muchísimo el trabajo.
+En general la sentencia \id{throw} siempre devuelve una cadena, y los bloques
+\id{try}-\id{catch} se limitan o a ignorar el error o a imprimir un mensaje
+de error y abortar la operación.
+Esto es cierto excepto en un caso particular en la clase \id{Nucleo,} donde
+\marginnote{Ver include/nucleo.h}
+están definidas dos clases (\id{NoHayHilos} y \id{NoHayHilosListos}) que
+se utilizan para poder distinguir la causa de la excepción y poder dar así
+un tratamiento específico.
+
+En cualquier caso, lo que te quiero decir es que si vas a modificar Eafitos
+debes utilizar también los mecanismos de gestión de excepciones de C++, vale
+la pena.

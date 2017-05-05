@@ -1,0 +1,142 @@
+\chapter{El núcleo: Entrada/Salida}
+\label{Cap: ES}
+
+Cada tipo de dispositivo de la máquina virtual debe tener un controlador
+asociado en el núcleo, o de lo contrario no podrá ser utilizado por los
+programas de usuario.
+
+Los controladores se pueden clasificar, al igual que los dispositivos, en
+dos grupos, de carácter o de bloque.
+Los controladores de tipo carácter leen y escriben en el dispositivo de forma
+secuencial, cada vez un solo carácter; ejemplos de estos dispositivos son
+el teclado y la pantalla.
+Los de tipo bloque leen y escriben información en bloques de datos de longitud
+fija y su acceso no es secuencial, es directo; un ejemplo de este tipo son
+los discos.
+
+En la Figura~\ref{Fig: Controladores} puedes ver la jerarquía de clases
+relacionadas con los controladores.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/controla.eps}
+	\caption{Jerarquía de clases para los controladores de dispositivos.}
+	\label{Fig: Controladores}
+\end{figure}
+
+
+\section{Listas de dispositivos}
+Para cada grupo de controladores tenemos sendas listas,
+\id{DispositivosCaracter} para los controladores de tipo carácter y
+\id{DispositivosBloque} para los controladores de tipo bloque.
+Cada una de estas clases tiene un vector (\id{dispositivos}) cuyas
+entradas apuntan a los controladores de dispositivos.
+La Figura~\ref{Fig: Dispositivos} ilustra estas estructuras.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/dispos.eps}
+	\caption{Listas de controladores de dispositivos.}
+	\label{Fig: Dispositivos}
+\end{figure}
+
+\subsubsection{Inicialización}
+Ambas clases tienen un método \id{iniciar}
+\footnote{También tienen un método \id{terminar} pero este no hace nada.}
+\marginnote{Ver nucleo/es/bloque.cpp y nucleo/es/caracter.cpp}
+que es el encargado de ``cargar'' los controladores de dispositivo en el
+atributo \id{dispositivos.}
+
+\subsubsection{Identificación}
+Una diferencia importante entre los controladores de tipo carácter y los
+de bloque es la forma en que se identifican.
+Mientras que los primeros tienen asociado un nombre los segundos se identifican
+por la posición que ocupan dentro del vector \id{dispositivos.}
+Esto se puede ver con claridad, además de en el método \id{iniciar,} en el
+método \id{obtenerControlador} que ambas clases poseen.
+\footnote{Inicialmente ambos tipos de dispositivos se identificaban por la
+posición dentro del atributo \id{dispositivos.}
+Modifiqué el modo de identificación de los controladores de tipo carácter
+cuando implementé la entrada/salida estándar como ficheros.
+Así, los controladores de tipo carácter se pueden tratar como ficheros
+normales, pero no los controladores de tipo bloque.}
+
+
+\section{Hilos en estado suspendido}
+Como puedes ver en la Figura~\ref{Fig: Controladores} la clase base de toda
+la jerarquía es \id{Cola,} esto significa que cada controlador de dispositivos
+tiene asociada una cola de hilos, la cual representa a los hilos que, en
+estado suspendido, están esperando para acceder al dispositivo.
+
+De hecho, la mayor parte de la complejidad en la gestión de las transiciones
+de estados de los hilos de \emph{Ejecución} a \emph{Suspendido} y de
+\emph{Suspendido} a \emph{Listo} reside en la clase \id{Controlador.}
+
+Para comprender mejor la forma en que Eafitos simula la entrada/salida, vamos
+a estudiar qué es lo que sucede desde que un hilo realiza una petición de
+entrada/salida hasta que esta se satisface.
+
+Las peticiones de entrada/salida nacen siempre con una llamada al sistema
+y pasan siempre por el sistema de ficheros
+\footnote{Esta parte la veremos en el Capítulo~\ref{Cap: SF}.}
+antes de llegar a uno de los métodos:
+\begin{itemize}
+\item \id{ControladorCaracter::leerCaracter}
+\item \id{ControladorCaracter::escribirCaracter}
+\item \id{ControladorBloque::leer}
+\item \id{ControladorBloque::escribir}
+\end{itemize}
+
+Entonces empieza el trabajo del subsistema de gestión de la entrada/salida.
+La petición no se satisface inmediatamente sino que provoca la suspensión
+del hilo que la realizó, esto está implementado en el método
+\id{nuevaPeticion} de la clase \id{Controlador.}
+Una vez el hilo está en estado \emph{Suspendido} y esperando en la cola del
+dispositivo, se procede a registrar la petición que realizó, esto se realiza
+con los métodos \id{Hilo::ponerPeticion} cuya función es almacenar la
+información necesaria en el atributo \id{Hilo::peticion.}
+Una vez realizado esto el control regresa al procesador, el cual seguirá
+ejecutando instrucciones (de otro hilo que haya pasado a \emph{Ejecución}).
+
+Cada vez que se ejecuta una instrucción se produce, como ya vimos en la
+Sección~\ref{Sec: Reloj}, una llamada al método \id{Nucleo::reloj} el cual
+a su vez llama a los métodos \id{DispositivosCaracter::gestionarColas} y
+\id{DispositivosBloque::gestionarColas.}
+Estos métodos recorren las listas de dispositivos llamando a los métodos
+\id{Controlador::planificador} de cada controlador de dispositivo.
+Dicho método decrementa el contador \id{Cola::tiempo,} si llega a cero ejecuta
+la petición pendiente del hilo que está en la cabeza de la cola (con el
+método \id{Controlador::ejecutarPeticion}) y lo pasa de \emph{Suspendido} a
+\emph{Listo}.
+
+
+\section{Crear nuevos controladores}
+Si creas nuevos dispositivos en la máquina virtual tendrás que escribir
+controladores para ellos, si no no podrás utilizarlos.
+
+Lo primero que debes tener claro es si el dispositivo es de tipo carácter o
+de tipo bloque.
+En cualquier caso deberás crear una clase, la cual deberá heredar de
+\id{ControladorCaracter} o \id{ControladorBloque,} según corresponda.
+
+\subsection{De tipo carácter}
+La nueva clase deberá implementar al menos uno de los dos métodos siguientes:
+\begin{itemize}
+\item \id{\_leerCaracter} Lee un carácter del dispositivo y lo devuelve.
+\item \id{\_escribirCaracter} Escribe el carácter que se le pasa en el
+	dispositivo.
+\end{itemize}
+
+Finalmente deberás modificar el método \id{DispositivosCaracter::iniciar,}
+para que el nuevo controlador sea incluido en la lista de controladores de
+tipo carácter.
+
+\subsection{De tipo bloque}
+La nueva clase deberá implementar al menos uno de los dos métodos siguientes:
+\begin{itemize}
+\item \id{\_leer} Lee el bloque indicado del dispositivo.
+\item \id{\_escribir} Escribe el bloque indicado en el dispositivo.
+\end{itemize}
+
+También deberás escribir un constructor que se utilizará para iniciar el
+controlador.
+
+Finalmente deberás modificar el método \id{iniciar} y/o \id{iniDisco} de la
+clase \id{DispositivosBloque}, para que el nuevo controlador sea incluido
+en la lista de controladores de tipo bloque.

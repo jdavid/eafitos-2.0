@@ -1,0 +1,293 @@
+\chapter{El núcleo: hilos y procesos}
+\label{Cap: Hilos}
+Eafitos distingue perfectamente entre hilos y procesos.
+Los hilos son los elementos activos del sistema operativo mientras que los
+procesos son un conjunto de recursos.
+Un hilo tiene siempre asociado un único proceso, mientras que un proceso
+puede tener asociados uno o más hilos.
+
+Cada uno de estos elementos, hilos y procesos, están definidos como clases,
+\id{Hilo} y \id{Proceso} respectivamente.
+Existen también otras clases relacionadas directamente con la gestión de
+hilos y de procesos, tales como \id{Cola} y \id{ManejadorProcesos.}
+
+\section{Hilos}
+
+\subsection{Estados}
+Un hilo puede estar en uno de tres estados, tal como muestra la
+Figura~\ref{Fig: Estados de un hilo}.
+\marginnote{Ver include/hilo.h}
+
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/hilo.eps}
+	\caption{Estados de un hilo}
+	\label{Fig: Estados de un hilo}
+\end{figure}
+
+Cuando se crea un hilo este se encuentra inicialmente en el estado
+{\em Listo}, es decir se encuentra disponible para ser ejecutado.
+Pueden haber varios hilos en estado {\em Listo}.
+
+En un momento dado el hilo que se encuentra en {\em Ejecución} en estos
+momentos pasará a estado {\em Listo} y uno de los hilos que se encuentra
+en {\em Listo} pasará a {\em Ejecución}.
+Solo puede haber un hilo en {\em Ejecución}, que es aquel que está siendo
+ejecutado en estos momentos por la CPU.
+La política según la cual se realiza este paso de {\em Listo} a
+{\em Ejecución} y viceversa se implementa en el planificador, que
+estudiaremos más adelante.
+
+En un momento dado el hilo que se encuentra en {\em Ejecución} puede realizar
+una petición de entrada/salida, esto hará que dicho hilo pase a estado
+{\em Suspendido}  y que otro hilo en {\em Listo} pase a {\em Ejecución}.
+Cuando la petición de entrada/salida se haya satisfecho el hilo que la
+realizó pasará a {\em Listo}.
+
+Existen dos formas de que un hilo termine: de forma natural, cuando acaba
+su ejecución (como muestra la flecha que sale de {\em Ejecución} hacia
+ninguna parte); y de forma ``violenta'' cuando algún otro hilo le ``mata'',
+esta segunda forma no aparece reflejada en la Figura ya que puede producirse
+independientemente del estado en el que se encuentre el hilo.
+
+El atributo \id{Hilo::estado} guarda el estado actual del hilo que puede ser
+\id{LISTO,} \id{EJECUCION} o \id{SUSPENDIDO.}
+Los métodos \id{iniciar,} \id{ejecutar,} \id{dormir,} \id{suspender,}
+\id{reactivar} y \id{terminar} implementan las transiciones de un estado
+a otro, es decir, representan los arcos de la
+Figura~\ref{Fig: Estados de un hilo}.
+\marginnote{Ver núcleo/hilo.cpp}
+
+\subsubsection{Cambio de contexto}
+Las transiciones a y desde el estado de \emph{Ejecución} implican el cambio
+del contexto del hilo, el cual, como ya vimos en la
+Sección~\ref{Sec: Contexto}, está formado por los registros del procesador.
+
+Cuando un hilo sale de \emph{Ejecución} se guarda su contexto, es decir, se
+copia \id{CPU::contexto} en \id{Hilo::contexto.}
+Y al revés, cuando un hilo pasa de \emph{Listo} a \emph{Ejecución} se carga
+su contexto, es decir, se copia \id{Hilo::contexto} en \id{CPU::contexto.}
+
+\subsection{Las colas de hilos}
+Eafitos puede tener un número variable de hilos ejecutándose, desde 0 hasta
+el valor de la constante \id{N\_HILOS.}
+Existe una tabla (un vector) que contiene una entrada para cada hilo, su
+definición está en la clase \id{Cola.}
+\marginnote{Ver include/cola.h}
+El atributo \id{Cola::hilos} es la tabla de hilos, fíjate que está declarada
+como \id{static,} lo que significa que solo existe una tabla en todo el
+sistema.
+Cada entrada de la tabla puede estar libre u ocupada, una entrada está libre
+si el atributo \id{Hilo::estado} tiene el valor \id{LIBRE;} eso significa que
+dicho atributo puede tomar, en realidad, cuatro valores: \id{LIBRE,}
+\id{LISTO,} \id{EJECUCION} y \id{SUSPENDIDO.}
+
+La clase \id{Cola,} además de contener la tabla de hilos, implementa una cola
+de hilos.
+Dicha cola es en realidad una lista circular doblemente enlazada.
+El atributo \id{primero} nos identifica el hilo que es cabeza de la cola,
+y los atributos \id{anterior} y \id{siguiente} de la clase \id{Hilo} apuntan,
+como ya habrás supuesto, al hilo anterior y siguiente en la cola.
+Los métodos \id{actual,} \id{insertar} y \id{extraer} nos permiten gestionar
+la cola.
+\marginnote{Ver nucleo/cola.cpp}
+
+Las colas de hilos sirven para mantener ordenados a los hilos cuando se
+encuentran en estado \emph{Listo} o \emph{Suspendido}.
+
+
+\section{Procesos}
+\label{Sec: Procesos}
+
+\subsection{Relación con los hilos}
+Por un lado en la clase \id{Hilo} se define el atributo \id{proceso} el
+cual referencia (es un puntero) al proceso asociado; por otro lado,
+la clase \id{Proceso} tiene un atributo llamado \id{uso} que nos indica
+el número de hilos asociados al proceso.
+\marginnote{Ver include/proceso.h}
+Como se puede ver existe una relación 1 a n entre los procesos y los hilos.
+
+También se ve que los hilos quedan así agrupados, perteneciendo a un mismo
+grupo aquellos que están asociados al mismo proceso.
+Pero el proceso no es lo único que comparten los hilos del mismo ``grupo''.
+Cada hilo tiene dos segmentos de memoria asociados, uno para el código y
+los datos estáticos y otro para la pila.
+Todos los hilos de un mismo proceso comparten el mismo segmento de código
+y datos estáticos, pero el segmento de pila no se comparte, es independiente.
+
+\subsection{Vida}
+Un proceso nace cuando se ejecuta un programa (ver
+Sección~\ref{Sec: Ejecucion}); su uso crece cada vez que se crea un hilo
+(ver Sección~\ref{Sec: Crear hilos}) y decrece cada vez que termina un hilo
+(ver Sección~\ref{Sec: Terminar hilos}); cuando su uso llega a cero el proceso
+termina.
+
+El método \id{Proceso::iniciar} es llamado cada vez que se crea un hilo
+y el método \id{Proceso::terminar} cada vez que uno termina
+\footnote{Evidentemente, nos referimos siempre a hilos asociados al proceso.}.
+\marginnote{Ver nucleo/proceso.cpp}
+
+\subsection{Recursos}
+Un hilo puede utilizar los recursos del proceso asociado.
+Básicamente el proceso nos proporciona acceso al sistema de ficheros y
+a la entrada/salida, de hecho, la mayor parte de las llamadas al sistema
+pasan por la clase \id{Proceso.}
+
+\subsubsection{Unidad y directorio}
+Los atributos \id{Proceso::unidad} y \id{Proceso::directorio} indican la
+unidad y el directorio actuales, respectivamente.
+Ambos parámetros se utilizan en las llamadas al sistema relacionadas con el
+sistema de ficheros, la operación requerida se realizará siempre sobre la
+unidad actual, mientras que el directorio actual se utiliza para encontrar
+un fichero cuando se utilizan rutas relativas en lugar rutas de absolutas.
+
+Los métodos \id{cambiarUnidad} y \id{cambiarDirectorio} permiten modificar
+estos atributos, implementan las llamadas al sistema equivalentes.
+
+\subsubsection{Sistema de ficheros}
+El atributo \id{ficherosLocales} es una tabla que contiene los ficheros
+abiertos por el proceso.
+Estos ficheros pueden referenciar a un fichero normal (ver
+Capítulo~\ref{Cap: SF}) o a un controlador de dispositivo de tipo carácter
+(ver Capítulo~\ref{Cap: ES}).
+Cada uno de estos ficheros se identifica por su posición en la tabla (vector).
+Los métodos \id{crear,} \id{abrir,} \id{cerrar,} \id{borrar,} \id{leer,}
+\id{escribir} y \id{saltar} implementan las llamadas al sistema equivalentes,
+nos permiten trabajar con el sistema de ficheros.
+El método \id{ejecutar} sirve para ejecutar programas.
+
+\subsubsection{Entrada/Salida estándar}
+Como en UNIX, en Eafitos los dispositivos se tratan como si fueran ficheros,
+pero la implementación es distinta (más sencilla) que la de UNIX.
+Esto permite acceder a ellos con los mismos métodos con los que accedemos a
+los ficheros normales.
+
+Además, están definidas una entrada y una salida estándar, que son los
+ficheros locales número 0 y 1 respectivamente.
+Específicamente para acceder a la entrada/salida estándar, los procesos
+disponen de los métodos \id{leerCaracter} e \id{imprimirCaracter,} los cuales,
+como sus nombres indican, leen y escriben un solo carácter de la entrada y
+en la salida estándar respectivamente.
+
+\section{El manejador de hilos y procesos}
+Este manejador está definido como la clase \id{ManejadorProcesos.}
+\marginnote{Ver include/procesos.h}
+Fíjate primero en que dicha clase desciende de la clase \id{Cola,} esto
+significa que \id{ManejadorProcesos} tiene acceso a la tabla de hilos;
+en concreto, este manejador gestiona los hilos que se encuentran en estado
+\emph{Listo} y el hilo que está en \emph{Ejecución}.
+Además, contiene la tabla de procesos (atributo \id{procesos}) e implementa
+las llamadas al sistema de creación/terminación de hilos y ejecución de
+programas.
+
+\subsection{Creación de hilos}
+\label{Sec: Crear hilos}
+Como ya vimos en la Sección~\ref{Sec: Llamadas al sistema} la llamada al
+sistema \id{CREAR\_HILO} crea un hilo que es una copia del hilo en
+\emph{Ejecución}.
+El nuevo hilo estará asociado al mismo proceso que el actual y ambos
+compartirán la memoria de código y datos (selector de segmento
+\id{Contexto::código,} pero la memoria de pila (selector de segmento
+\id{Contexto::pila}) será diferente.
+
+Esta llamada al sistema está implementada por el método
+\id{ManejadorProcesos::crearHilo,} el cual a su vez hace uso de uno de los
+dos métodos \id{Hilo::iniciar}
+\footnote{Aquí, como en otros sitios, hago uso del polimorfismo.
+	Hay dos métodos iniciar porque hay dos formas de crear un hilo,
+	a partir de un hilo ya existente o como uno nuevo e independiente
+	(cuando se ejecuta un programa, ver Sección~\ref{Sec: Ejecucion}).} 
+.
+Te aconsejo en este punto que le peches un vistazo al código que está bien
+comentado.
+
+\subsection{Terminación de hilos}
+\label{Sec: Terminar hilos}
+Existen dos llamadas al sistema relacionadas, una termina el hilo actual y
+otra termina un hilo cualquiera (su identificador se pasa como parámetro).
+
+Ambas llamadas son implementadas por el método
+\id{terminarHilo,} el cual, lo único que hace, además de un par de
+comprobaciones, es llamar al método \id{Hilo::terminar} encargado,
+como su nombre indica, de terminar el hilo.
+Una vez más, te invito a que le peches un vistazo al código.
+
+\subsection{El planificador}
+Este es el responsable de la política por la cual un hilo pasa de \emph{Listo}
+a \emph{Ejecución} y viceversa.
+
+El planificador está implementado en el método \id{planificador,} el cual
+hace uso de los métodos \id{Hilo::ejecutar} e \id{Hilo::dormir.}
+
+La política implementada es \emph{Round-Robin}, es decir, cada cierto tiempo
+el hilo en ejecución pasa a ocupar el último lugar de la cola de hilos listos,
+y el primer hilo de la cola pasa a ejecución.
+El tiempo se mide en número de instrucciones ejecutadas, la constante
+\id{TAJADA} nos da dicho número.
+
+
+\section{Ejecución de programas}
+\label{Sec: Ejecucion}
+
+\subsection{Formatos de fichero ejecutable}
+Los programas residen en ficheros con un formato dado, hay que leer dichos
+ficheros e interpretarlos.
+
+Eafitos tiene definido un formato de fichero ejecutable concreto llamado 99
+\footnote{Por el año 1999. Lo mio no es poner nombre a las cosas.}
+, el cual está definido por la clase \id{Ejecutable99.}
+Pero además, Eafitos dispone de los recursos necesarios para poder definir
+nuevos formatos y añadirlos fácilmente al núcleo.
+
+\subsubsection{Crear nuevos formatos de ejecutables}
+Para crear un nuevo formato de ejecutable debes crear una nueva clase que
+herede de la clase base \id{Ejecutable.}
+\marginnote{Ver include/ejec.h}
+El fichero de implementación (\emph{.cpp}) de la nueva clase deberá residir
+en el directorio ``nucleo/ejec/''.
+Lo único que debe implementar la nueva clase es el método \id{ejecutar.}
+
+Una vez hecho esto tan solo queda registrar el nuevo formato en el núcleo,
+esto consiste en ocupar una entrada del vector \id{ejecutables,} el
+método \id{ManejadorProcesos::iniciar} se encarga de hacerlo.
+
+Si vas a crear un nuevo formato te aconsejo que estudies el formato que ya
+existe, el 99.
+
+\subsubsection{Formato 99}
+La clase \id{Ejecutable99,} que desciende de \id{Ejecutable,} es la que
+implementa el formato 99.
+\marginnote{Ver include/ejec99.h}
+En la Figura~\ref{Fig: Ejecutable 99} puedes ver la estructura de un fichero
+con este formato.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/ejec99.eps}
+	\caption{Formato de un fichero ejecutable 99.}
+	\label{Fig: Ejecutable 99}
+\end{figure}
+
+En primer lugar se encuentra la cabecera que contiene información varía y
+después la imagen del ejecutable que habrá que cargar en memoria.
+
+La cabecera empieza con el número mágico que identifica al fichero como
+ejecutable 99, el número es 2323
+\footnote{Dos veces mi edad en el momento de escribir esto.}
+.
+A continuación viene la dirección donde empieza el código, es decir, el
+valor con el que hay que inicializar el contador de programa
+(\id{Contexto::pc}).
+Por último se encuentra el tamaño mínimo que debe tener la pila.
+
+
+\subsection{Ejecución}
+El método \id{ManejadorProcesos::ejecutar} es el responsable de realizar
+esta operación.
+\marginnote{Ver \id{ejecutar} en nucleo/procesos.cpp}
+La ejecución de un programa provoca la creación de un hilo y de un proceso,
+por ello, lo primero que hace \id{ejecutar} es buscar entradas libres en las
+tablas de hilos y de procesos.
+Tras esto abre el fichero que se supone contiene la imagen del ejecutable.
+A continuación recorre el vector \id{ManejadorProcesos::ejecutables}
+llamando cada vez al método \id{Ejecutable::ejecutar,} hasta que el fichero
+es reconocido, entonces se crea el hilo y el procesos llamando al método
+\id{Hilo::iniciar}.
+Si el fichero no se reconoce como ejecutable se genera un error.

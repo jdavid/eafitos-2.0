@@ -1,0 +1,49 @@
+; Programa que crea dos hilos, cada uno de ellos imprime un mensaje y espera
+;   a que el usuario pulse una tecla
+DATOS
+	cerradura #0
+	padre	"Soy el padre: "
+	hijo	"Soy el hijo: "
+CODIGO
+	; crea un hilo
+	cargar_i @1, hilo
+	apilar @1
+	cargar_i @2, #1
+	apilar @2
+	ser_sis
+
+	cargar_i @2, padre
+	saltar main
+
+hilo	cargar_i @2, hijo
+
+
+main	; reserva la cerradura
+	cargar_i @1, cerradura
+	apilar @1
+	cargar_i @1, #4
+	apilar @1
+	ser_sis
+
+
+	; imprime la cadena 
+	cargar_i @1, #31	; código de llamada al sistema
+	cargar_i @3, #1		; desplazamiento para recorrer la cadena
+
+bucle	cargar8 @4, @2
+	saltar0 @4, fin
+
+	apilar @4	; llamada al sistema
+	apilar @1
+	ser_sis
+
+	sumar @2, @3, @2
+	saltar bucle
+
+
+fin	; libera la cerradura
+	cargar_i @1, cerradura
+	apilar @1
+	cargar_i @1, #5
+	apilar @1
+	ser_sis

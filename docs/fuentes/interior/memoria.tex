@@ -1,0 +1,44 @@
+\chapter{El núcleo: gestión de memoria}
+
+La parte del núcleo responsable de la gestión de memoria está representada
+por la clase \id{ManejadorMemoria.}
+\marginnote{Ver include/memoria.h}
+El manejador de memoria se apoya en la unidad de gestión de memoria de la
+máquina virtual para realizar su tarea, de hecho la mayor parte del trabajo
+lo realiza la \emph{MMU}.
+
+
+\section{Reservar y liberar memoria}
+Esta es la tarea principal del manejador de memoria.
+Para realizarla disponemos de tres métodos, \id{asignar,} \id{reservar} y
+\id{liberar.}
+Estos métodos lo único que hacen es llamar a sus equivalentes en la unidad
+de gestión de memoria.
+El primero, \id{asignar,} reserva la memoria solicitada y devuelve el
+\emph{selector de segmento} reservado; el método \id{reservar} incrementa el
+uso del segmento especificado; finalmente, \id{liberar} reduce el uso del
+segmento especificado y, si ya no se utiliza (su uso es cero), libera al
+segmento y a la memoria asociada.
+
+\section{Copiar desde y hacia espacio de usuario}
+En los sistemas operativos reales suelen existir unas funciones que copian
+datos de memoria de usuario a memoria del núcleo y viceversa.
+En Eafitos también, solo que la memoria del núcleo no reside en la memoria
+de la máquina virtual, sino directamente en la memoria del sistema operativo
+anfitrión.
+
+Estos métodos son \id{aUsuario} y \id{deUsuario}, los cuales copian,
+respectivamente, datos de memoria del núcleo a memoria de usuario y viceversa.
+\marginnote{Ver nucleo/memoria.cpp}
+Para se ello utilizan los métodos \id{CPU::escribirByte} y \id{CPU::leerByte}.
+
+\section{Modificar el modelo de memoria}
+Modificar el modelo de memoria implica no solo modificar el manejador de
+memoria, sino sobre todo modificar la unidad de gestión de memoria en la
+máquina virtual, ya que la mayor complejidad reside en la \emph{MMU}.
+De hecho, dependiendo de los cambios que se quieran realizar, es probable que
+no sea necesario modificar el manejador de memoria en nada.
+El modelo de memoria no está pensado especialmente para que sea fácilmente
+modificable, pero algunas cambios sencillos no deberían ser difíciles de
+hacer, ya que los mecanismos básicos de paginación y segmentación están
+implementados.

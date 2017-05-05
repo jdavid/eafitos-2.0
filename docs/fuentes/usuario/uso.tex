@@ -1,0 +1,73 @@
+\chapter{Manual de usuario}
+
+\section{Instalación de Eafitos}
+Para poder ejecutar Eafitos tan solo necesitas el fichero ejecutable, el cual
+debes haberlo obtenido junto con este documento.
+
+Pero antes de ejecutar Eafitos debes tener en cuenta una cosa.
+Eafitos necesita de unos ficheros (los discos duros virtuales) que se
+alojaran en el directorio ``$\backslash$EAFITOS'' o ``\$HOME/EAFITOS''
+según utilices DOS o GNU/Linux.
+Asegurate de tener dicho directorio creado antes de ejecutar Eafitos.
+
+\subsubsection{Compilación}
+Para compilar Eafitos en DOS necesitarás Borland C++ 4.5, es posible
+que funcione con otras versiones (posteriores a la versión 3.1), pero no
+puedo garantizarlo ya que no lo he probado.
+
+Para compilarlo en GNU/Linux necesitarás el compilador \emph{egcs} y la
+librería \emph{NCURSES}.
+Si dispones de esto, es posible que incluso puedas compilarlo en otras
+versiones de UNIX.
+
+La compilación en otros entornos será posible siempre y cuando dispongas
+de alguna líbreria de Curses y de un compilador de C++ que implemente,
+al menos, la revisión número 3.0 del borrador oficial de ANSI C++.
+
+\section{Gestión de los discos}
+La información en Eafitos se almacena en unos discos virtuales que en realidad
+son ficheros del Sistema Operativo real sobre el que se ejecuta Eafitos.
+
+Cuando ejecutas Eafitos aparece un menú con cuatro opciones.
+La primera te permitirá arrancar el intérprete de comandos para empezar a
+trabajar, pero antes de hacer esto debes tener al menos un disco creado y
+formateado.
+Para eso tienes las opciones 2 y 3, primero crea los discos que quieras
+(hasta un máximo de cinco) con la opción 2 y después les das formato;
+ahora ya puedes iniciar el intérprete.
+La última opción, la cuarta, es, como su nombre indica, para terminar la
+ejecución de Eafitos.
+
+\section{El intérprete de comandos}
+Ahora vamos a ver qué es lo que se puede hacer con Eafitos.
+Para ello estudiaremos su intérprete de comandos.
+
+Primero, has de saber que el intérprete distingue entre mayúsculas y
+minúsculas (como UNIX y al contrario que DOS), por lo que `Salir' no es
+lo mismo que `salir'.
+
+Ahora veamos la lista de comandos que nos proporciona:
+\begin{itemize}
+\item \textbf{salir} Termina el intérprete y regresa al menú inicial.
+\item \textbf{disco {\em numero}} Cambia el disco actual al indicado y el
+	directorio actual pasa a ser el directorio raíz del nuevo disco.
+\item \textbf{creadir {\em nombre}} Crea el directorio {\em nombre}.
+\item \textbf{cd {\em directorio}} Cambia el directorio actual al indicado.
+\item \textbf{poner {\em fichero}} Pasa el fichero indicado del SO anfitrión
+	a Eafitos.
+\item \textbf{obtener {\em fichero}} Pasa el fichero indicado de Eafitos al SO
+	anfitrión.
+\item \textbf{borrar {\em fichero}} Borra el fichero indicado (también sirve
+	para direcotorios).
+\item \textbf{dir} Lista el contenido del directorio actual.
+\item \textbf{ver {\em fichero}} Muestra el contenido del fichero indicado
+	(como \emph{type} de DOS o \emph{cat} de UNIX).
+\item \textbf{compilar {\em fichero}} Compila el fichero indicado (aquí
+	entra en juego el compilador), el ejecutable que se genera recibe
+	el nombre {\em fichero.exe}.
+\end{itemize}
+
+Cuando escribes cualquier otra cadena, si corresponde a un fichero ejecutable
+lo ejecuta y si no da un mensaje de error.
+Los programas de usuario no admiten parámetros en la línea de comandos.
+Cualquier parámetro de más en la línea de comandos se ignora.

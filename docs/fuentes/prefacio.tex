@@ -1,0 +1,161 @@
+\chapter{Prefacio}
+
+Este documento, junto con el software que le acompaña, es una herramienta
+creada para el aprendizaje de Sistemas Operativos, su diseño e implementación.
+Su nombre es EAFITOS cuyo significado es ``EAFIT Operating System'', EAFIT
+es la universidad donde nació, situada en Medellín (Colombia).
+
+Ya existen otros Sistemas Operativos creados con los mismos fines.
+Los cuales pueden ser divididos en dos grupos según funcionen directamente
+sobre una máquina real (ejemplo, Minix) o sobre una máquina imaginaria que
+se simula sobre otro SO (ejemplo, Nachos).
+
+Al desarrollar Eafitos se decidió hacerlo sobre una máquina imaginaria ya
+que eso reduce mucho los costes de implementación y simplifica el producto
+final, el cual será más fácil de comprender y modificar por parte de los
+estudiantes.
+
+
+\section{Historia}
+
+\subsection{La primera versión}
+\emph{Los textos de esta sección son fragmentos extraídos de la documentación
+de la primera versión de Eafitos.}
+
+\subsubsection{Origen}
+El Sistema Operativo EAFITOS fue diseñado e implementado con el fin de
+permitir que los estudiantes del curso de pregrado ST075, de la Universidad
+de EAFIT (Medellín, Colombia) tuvieran una herramienta (simple pero completa)
+para comprender, visualizar, evaluar y experimentar los conceptos abstractos
+que se enseñan en un curso básico de S.O.
+La primera versión de este producto fue desarrollada por aproximadamente 10
+grupos de 3 estudiantes en promedio durante el primer semestre de 1995 y
+ocupa menos de un disquete de 1.44~Megas incluyendo programas fuentes y
+ejecutables.
+Posteriormente, en los cursos siguientes se han ido mejorando algunas de sus
+funciones básicas como manejo de ventanas simples, procesos concurrentes,
+semáforos, etc...
+Pero quizá lo más importante es que se ha ido incrementando poco a poco la
+calidad del mismo y en consecuencia el número de ``bugs''.
+
+\subsubsection{Objetivos}
+Los principales objetivos que se tuvieron en cuenta en el diseño del S.O.
+EAFITOS fueron:
+\begin{enumerate}
+\item Ser tan simple que pueda ser entendido en pocas sesiones de clase con
+	el fin de que el estudiante pueda evaluarlo, modificarlo y/o
+	extenderlo como parte del trabajo normal del curso ST075.
+\item Correr en el computador personal de cada estudiante sin obligarlo a
+	hacer particiones de su disco ni ampliar el hardware.
+\item Implementar conceptos básicos y fundamentales del S.O. que no tiene
+	DOS-PC como son multiprogramación, planificación de procesos, hilos,
+	mecanismos de sincronización, seguridad, adecuado nivel de
+	protección de archivos, protección de memoria, etc..
+\item Mostrar claramente la diferencia entre la especificación de un S.O.
+	(llamadas al sistema) y la implementación de las mismas, procurando
+	que la interfaz se mantenga cuando la implementación cambie.
+\item Facilitar a comprender los conceptos básicos de diseño como complejidad,
+	eficiencia, simplicidad, elegancia, robustez, etc.. y las relaciones
+	entre ellos.
+\item Ser fácilmente transportable a otras plataformas de S.O.
+\item Poder usarse como herramienta en otros cursos de la carrera de
+	Ingeniería de Sistemas como son Teoría de Archivos, Bases de Datos,
+	Arquitectura de Computadores, Telemática, Compiladores, etc..
+\end{enumerate}
+
+
+\subsection{La versión 2.0}
+En el verano de 1998 se me concedió una beca del programa de Cooperación
+Interuniversitaria, que otorga la AECI (Agencia Española para la Cooperación
+Internacional) a estudiantes españoles para realizar trabajos en universidades
+Latino-Americanas.
+
+El destino de la beca fue la universidad EAFIT de Medellín (Colombia) y el
+objetivo de la misma era continuar con el desarrollo del sistema operativo
+educacional EAFITOS.
+Mi tutor en Colombia fue el profesor Omar García Palencia.
+Decidimos reescribir EAFITOS desde cero, para conseguir un software que
+se adecuara mejor a sus objetivos educativos.
+
+No fue posible terminar el trabajo durante los dos meses que duró mi estancia
+en Colombia, así que lo terminé en España, aprovechándolo además como proyecto
+final de carrera (mi director de proyecto fue el profesor Rafael Mayo Gual).
+
+La nueva versión de Eafitos se adecua mejor a sus objetivos de diseño.
+Por ejemplo, es más portable, funciona en DOS y en GNU/Linux y portarlo a
+otro sistema no debería implicar la modificación de una sola línea de código
+fuente; también es más fácil de comprender y modificar, gracias en parte a
+un diseño más cuidado y a una documentación de mayor calidad.
+
+Pero además de esto, un objetivo fundamental de la nueva versión de Eafitos
+era acercarse un poco más a los sistemas operativos reales, ya que la primera
+versión tenía algunas diferencias graves e innecesarias.
+Por ejemplo, la nueva versión elimina los registros de tipo cadena del
+procesador e implementa las llamadas al sistema como tales (no como
+instrucciones del procesador).
+
+\subsection{Algunas preguntas y sus respuestas}
+\subsubsection{¿Por qué orientado a objetos?}
+El programa, de por sí, requiere un enfoque orientado a objetos (para la
+abstracción de sistemas de ficheros, por ejemplo).
+Esto se puede implementar mediante punteros con un lenguaje más tradicional,
+como C, de hecho eso es lo que hacen muchos núcleos de sistema operativo
+reales, Linux por ejemplo.
+Pero resulta mucho más natural hacerlo con un lenguaje orientado a objetos.
+
+Además, estos lenguajes suelen ofrecer otras características que hacen más
+fácil la vida de los estudiantes y desarrolladores.
+Así, se simplifica el diseño y se incrementa la legibilidad del código.
+
+
+\subsubsection{¿Por qué C++?}
+La versión original de Eafitos estaba escrita en ANSI C, igual que la
+mayoría de sistemas operativos reales.
+Pero C no nos vale porque no es orientado a objetos.
+
+Probablemente otros lenguajes hubieran servido a nuestros propósitos, de
+hecho, inicialmente se consideró la posibilidad de escribir la nueva versión
+en Java.
+Pero pensamos que era mejor utilizar un lenguaje compilado para que a ningún
+estudiante se le quedase ``pequeño'' su ordenador.
+
+Existen otros lenguajes compilados que podrían haber servido, podríamos
+haberlos evaluado con detenimiento pero eso hubiera significado mucho
+tiempo.
+Así que elegimos C++, porque sirve perfectamente a nuestros propósitos y
+porque pasar de C a C++ resulta ser lo más natural.
+
+\subsubsection{¿Por qué Curses?}
+La versión original de Eafitos utilizaba la librería de DOS \emph{conio}
+para implementar el editor de textos y el depurador.
+Pero esta librería tan solo está disponible, que yo sepa, en DOS.
+
+Para mejorar la portabilidad del código se decidió utilizar Curses, una
+líbreria que ha sido portada a un gran número de sistemas distintos.
+En concreto, se ha utilizado \emph{NCurses} en GNU/Linux y \emph{PDCurses}
+en DOS.
+
+
+\section{Acerca de los responsables del proyecto}
+
+El profesor Omar García Palencia es quien empezó todo esto.
+Es profesor de Ingeniería de Sistemas en la Universidad EAFIT de Medellín
+(Colombia).
+Puede ser localizado en:
+\begin{quote}
+\begin{tabular}{ll}
+\textbf{Correo electrónico} & : \emph{ogarcia@sigma.eafit.edu.co}\\
+\textbf{Páginas web} & : \emph{http://sigma.eafit.edu.co/\~{}ogarcia}
+\end{tabular}
+\end{quote}
+
+El autor de este documento y de la versión 2.0 de Eafitos es Juan David
+Ibáñez Palomar.
+Soy Ingeniero en Informática de la Universidad Jaume~I de Castellón (España).
+Puedes encontrarme en:
+\begin{quote}
+\begin{tabular}{ll}
+\textbf{Correo electrónico} & : \emph{al004151@alumail.uji.es}\\
+\textbf{Páginas web} & : \emph{http://www4.uji.es/\~{}al004151}
+\end{tabular}
+\end{quote}

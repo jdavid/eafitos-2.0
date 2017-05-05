@@ -1,0 +1,54 @@
+% Identificadores del código (clases, métodos,...)
+\newcommand{\id}[1]{
+	{\fontfamily{pcr}\fontseries{b}\selectfont #1}
+}
+
+
+% Expresiones regulares (para el compilador)
+\newcommand{\er}[1]{
+	{\ttfamily #1}
+}
+
+
+% Símbolos terminales
+\newcommand{\te}[1]{
+	{\fontfamily{pss}\fontseries{b}\selectfont #1}
+}
+
+% Símbolos no terminales
+\newcommand{\nt}[1]{
+	{\fontfamily{pss}\selectfont #1}
+}
+
+
+% Notas al margen.
+\newcommand{\marginnote}[1]{
+	\marginpar{
+		\fbox{
+			\parbox{1in}{
+				\raggedright
+				\footnotesize{#1}
+			}
+		}
+	}
+}
+
+
+% Fragmentos de código
+\newenvironment{codigo}
+	{\small}
+	{\normalsize}
+
+
+% Notas para recordarme cosas que quedan por hacer
+\newcommand{\nota}[1]{
+	{\fontfamily{cmss}\fontshape{sl}\selectfont NOTA: #1}
+}
+
+
+% Definiciones usadas en los ficheros de licencia "gpl.tex" y "gpl-es.tex"
+\def\cparam#1{$<$\emph{#1}$>$}
+
+\newenvironment{tscreen}
+ {\begin{quote}\bgroup\small\tt}%
+ {\egroup\end{quote}}

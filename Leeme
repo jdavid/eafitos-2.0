@@ -1,0 +1,19 @@
+Esto es EAFITOS (version 2.0) un Sistema Operativo con fines educacionales.
+
+
+ - Para detalles legales mira los ficheros "LICENCIA" y "LICENSE".
+
+ - Mira el fichero "Cambios" para saber que tiene de nuevo esta versión,
+   y el fichero TODO para conocer los planes para el futuro proximo.
+
+ - Más documentación en el directorio "docs".
+
+ - El directorio "bin" tiene ejecutables.
+
+ - El directorio programa contiene las fuentes.
+
+ - El directorio "ejemplos" tiene varios programas para Eafitos, escritos
+   en su lenguaje ensamblador.
+
+ - Por último, el directorio "pracs" contiene la solucion de algunas practicas
+   (ahora solo una).

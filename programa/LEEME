@@ -1,0 +1,33 @@
+Este directorio contiene las fuentes de Eafitos, para DOS y para GNU/Linux.
+La mayoria de los ficheros son comunes pero existen algunas excepciones.
+
+
+GNU/Linux
+---------
+Ficheros exclusivos:
+	Makefile
+
+Para compilar:
+	$ make
+
+
+Es probable que también se pueda compilar en otros UNIX y en otras
+arquitecturas sin realizar ninguna modificación, pero yo no lo he
+probado.
+
+
+
+DOS (Borland C++ 4.5)
+---------------------
+Ficheros exclusivos:
+	include/CURSES.H
+	lib/pdcurses.lib
+	eafitos2.ide
+	eafitos2.dsw
+
+
+Tal vez también se pueda compilar en otras versiones de Borland C++ sin
+realizar ninguna modificación, si los ficheros de proyecto (ide y dsw)
+tienen el mismo formato.
+Pero no funcionará con Borland C++ 3.1 porque esa versión no soporta la
+gestión de excepciones de C++.

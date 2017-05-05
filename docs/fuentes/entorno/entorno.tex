@@ -1,0 +1,26 @@
+\chapter{El entorno}
+
+La ejecución comienza en la función \id{main}.
+\marginnote{Ver eafitos2.cpp}
+Primero inicia la máquina virtual y el núcleo, después cede el control al
+entorno ejecutando el método \id{Entorno::iniciar} y finalmente termina
+el núcleo y la máquina virtual.
+
+El entorno no es más que el sistema de menús que aparece cuando se ejecuta
+Eafitos, el cual permite crear y formatear discos e iniciar el intérprete
+de comandos.
+Está definido e implementado por la clase \id{Entorno} en los ficheros
+\emph{include/entorno.h} y \emph{entorno/entorno.cpp}, es muy simple, así que
+no lo voy a comentar.
+
+
+\section{El intérprete de comandos}
+El intérprete de comandos está definido e implementado por la clase.
+\id{InterpreteComandos}.
+\marginnote{Ver include/ic.h y entorno/ic.cpp}
+Consta de un sólo método llamado \id{iniciar}, que es muy sencillo.
+Básicamente se trata de un bucle infinito, al principio del cual se lee una
+línea del teclado para analizarla a continuación.
+En función del comando que haya escrito el usuario se realizará una acción u
+otra, o ninguna si el comando no está definido.
+Del bucle se sale cuando el usuario escribe el comando \emph{salir}.

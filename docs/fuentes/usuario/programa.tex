@@ -1,0 +1,707 @@
+\chapter{Manual del programador}
+En este capítulo veremos todo lo que se necesita saber para escribir
+programas para el sistema operativo Eafitos, y algo más.
+
+La CPU de la máquina virtual sobre la que se ejecuta Eafitos entiende un
+código máquina muy sencillo, con un conjunto de instrucciones muy reducido
+que se describirá más adelante.
+Pero el programador de Eafitos no tiene que tratar directamente con el
+código máquina, ya que se ha desarrollado un lenguaje ensamblador y un
+compilador que hacen más fácil la vida del programador.
+
+En las Secciones~\ref{Sec: Estruct. de un prog.}~y~\ref{Sec: Arquitectura}
+se describe dicho lenguaje y se explica la arquitectura del procesador;
+en la Sección~\ref{Sec: Llamadas al sistema} se describen los servicios que
+nos proporciona el núcleo de Eafitos; finalmente, en la
+Sección~\ref{Sec: Ejemplo} se estudia un pequeño programa que servirá de
+ejemplo.
+
+\section{Estructura de un programa}
+\label{Sec: Estruct. de un prog.}
+
+Un programa de Eafitos consta de dos partes.
+Primero una declaración de variables, que es opcional, y a continuación
+el código.
+
+En la Figura~\ref{Fig: dos ejemplos} vemos dos pequeños ejemplos que nos
+ayudarán a comprender mejor dicha estructura.
+
+\begin{figure}
+\begin{verbatim}
+; Ejemplo número 1                 ; Ejemplo número 2
+DATOS                              CODIGO
+        numero  #3                         cargar_i @0, #2
+        cadena  "hola"                     cargar_i @1, #3
+CODIGO                                     sumar @0, @1, @3
+        cargar_i @0, #2
+etiq    cargar_i @1, numero
+        cargar32 @1, @1
+        sumar @0, @1, @3
+\end{verbatim}
+\caption{Ejemplos de programas de Eafitos}
+\label{Fig: dos ejemplos}
+\end{figure}
+
+Lo primero que se observa en ambos ejemplos es una línea empezada por un
+punto y coma.
+Se trata de un comentario. 
+Los comentarios empiezan por punto y coma y acaban en el final de la línea.
+Se pueden poner en cualquier lugar del programa.
+
+Lo que diferencia a ambos ejemplos es que el segundo no tiene una zona de
+declaración de variables.
+La zona de declaración de variables, si existe, debe estar siempre al inicio
+del programa y empezar por la palabra DATOS (o DaTos, el compilador no es
+sensible a mayúsculas/minúsculas).
+En ella existen una lista de variables, primero el nombre de la variable y
+a continuación su valor inicial.
+Existen dos tipos de variable:
+\begin{itemize}
+\item De tipo numérico.
+	Ocupan 32 bits.
+	El valor inicial que toma la variable debe ir precedido por una
+	almohadilla (\#).
+\item De tipo cadena. Ocupan tanto como la longitud de la cadena más uno
+	(por el carácter de final de cadena).
+	La cadena aparece entre comillas.
+\end{itemize}
+
+Las variables siempre deben inicializarse, aunque después no se vaya a
+utilizar el valor inicial que contienen.
+Más adelante, en el código, referenciaremos las variables por su nombre,
+esto no nos dará el valor que contienen sino la dirección de memoria que
+representan.
+
+A continuación va el código, el cual debe empezar por la palabra CODIGO.
+El código no es más que una lista de instrucciones, una en cada línea,
+primero aparece el nombre de la instrucción y después sus operandos
+separados por comas.
+Además, opcionalmente, puede aparecer al principio una etiqueta que se podrá
+utilizar como destino en los saltos.
+En el primer ejemplo se observa una, aunque en este caso no se llega a
+utilizar.
+
+En cuanto a los operandos, podemos observar tres formas diferentes de
+indicarlos:
+\begin{itemize}
+\item Registros.
+	Primero se escribe un carácter arroba (@) y después el número
+	del registro
+\item Inmediato.
+	Primero aparece un carácter almohadilla (\#) y después el valor del
+	dato.
+\item Referencia a variable.
+	Tan solo aparece el nombre de la variable.
+\end{itemize}
+
+
+\section{Arquitectura del procesador}
+\label{Sec: Arquitectura}
+
+En esta sección estudiaremos el juego de instrucciones con cierto detalle,
+y veremos todos los aspectos del procesador que interesan al programador
+de Eafitos.
+
+\subsection{Registros del procesador}
+\label{Sec: Registros}
+Este es un procesador basado en registros generales, tiene un total de 16
+numerados del 0 al 15, que el programador utilizará explícitamente.
+Además, cuenta con los típicos registros de contador de programa y puntero
+a pila, que se modifican implícitamente con las instrucciones de salto y
+las de gestión de la pila respectivamente.
+
+Por otro lado, carece de registro de estado.
+Los saltos condicionales se realizan en función del valor de los registros
+generales.
+
+\subsection{Formato de las instrucciones}
+La longitud de las instrucciones es variable.
+El primer byte identifica de que instrucción se trata (por lo tanto, pueden
+haber hasta 256 instrucciones).
+A continuación vienen los operandos, que pueden ser de dos tipos:
+
+\begin{description}
+\item [Registro] Referencia a alguno de los 16 registros del procesador.
+	Ocupa un byte.
+\item [Inmediato] Es un dato de 32 bits.
+\end{description}
+
+
+Existen seis tipos distintos de instrucciones según su número y tipo de
+operandos.
+Son:
+
+\begin{itemize}
+\item Sin operandos. Solo ocupan un byte.
+\item Con un operando de tipo registro. Ocupan dos bytes.
+\item Dos operandos de tipo registro. Tres bytes.
+\item Tres operandos de tipo registro. Cuatro bytes.
+\item Un operando de tipo inmediato. Cinco bytes.
+\item Un operando de tipo inmediato y otro de tipo registro. Seis bytes.
+\end{itemize}
+
+
+\subsection{Modos de direccionamiento}
+Existen cuatro modos de direccionamiento:
+\begin{description}
+\item [Directo a registro]
+	El valor se encuentra almacenado en el registro.
+	Un registro, un byte.
+\item [Inmediato]
+	El valor esta contenido en la propia instrucción.
+	Un dato inmediato, cuatro bytes.
+\item [Indirecto mediante registro]
+	El registro especifica la dirección de memoria donde se encuentra
+	el valor.
+	Un registro, un byte.
+\item [Directo a memoria]
+	La propia instrucción especifica la dirección de memoria donde se
+	encuentra el valor.
+	Un dato inmediato, cuatro bytes.
+\end{description}
+
+
+\subsection{Descripción individual de todas las instrucciones}
+
+\subsubsection{Aritmético/Lógicas}
+Pueden ser instrucciones de dos o de tres operandos, según el operador que
+representan sea unario o binario respectivamente.
+En cualquier caso, el modo de direccionamiento utilizado para todos los
+operandos es el directo a registro.
+
+Los primeros operandos (uno o dos según sea una operación unaria o binaria)
+son los registros fuente sobre los que se realiza la operación.
+El último es el registro destino donde se almacena el resultado.
+
+Existen seis instrucciones en esta categoría:
+
+\begin{itemize}
+\item \textbf{sumar \emph{fuente1}, \emph{fuente2}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: suma los dos operandos fuente y almacena el
+		resultado en el destino.
+
+	\emph{Modos de direccionamiento de los operandos}: directo a registro.
+	\end{verse}
+
+\item \textbf{restar \emph{fuente1}, \emph{fuente2}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: Resta el segundo operando fuente del primero y
+		almacena el resultado en el destino
+
+	\emph{Modos de direccionamiento de los operandos}: directo a registro.
+	\end{verse}
+
+\item \textbf{and \emph{fuente1}, \emph{fuente2}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: aplica la operación Y lógica a los dos operandos
+		fuente y almacena el resultado en el destino.
+
+	\emph{Modos de direccionamiento de los operandos}: directo a registro.
+	\end{verse}
+
+\item \textbf{or \emph{fuente1}, \emph{fuente2}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: aplica la operación O lógica a los dos operandos
+		fuente y almacena el resultado en el destino.
+
+	\emph{Modos de direccionamiento de los operandos}: directo a registro.
+	\end{verse}
+
+\item \textbf{copiar \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: copia del registro fuente al destino.
+
+	\emph{Modos de direccionamiento de los operandos}: directo a registro.
+	\end{verse}
+
+\item \textbf{not \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: almacena en destino el resultado de aplicar la
+		negación lógica al registro fuente.
+
+	\emph{Modos de direccionamiento de los operandos}: directo a registro.
+	\end{verse}
+\end{itemize}
+
+\subsubsection{De acceso a memoria}
+Tienen siempre dos operandos.
+El primero es siempre directo a registro.
+El segundo puede ser cualquiera de los cuatro modos de direccionamiento,
+excepto el directo a registro.
+
+\begin{itemize}
+\item \textbf{cargar32 \emph{destino}, \emph{fuente}}
+	\begin{verse}
+	\emph{Descripción}: lee de memoria (fuente) un dato de 32 bits y lo
+		almacena en un registro (destino).
+
+	\emph{Modo de direccionamiento del destino}: directo a registro.
+
+	\emph{Modo de direccionamiento del fuente}: indirecto mediante
+		registro.
+	\end{verse}
+
+\item \textbf{guardar32 \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: escribe en memoria (destino) un dato de 32 bits
+		que está almacenado en un registro(fuente).
+
+	\emph{Modo de direccionamiento del fuente}: directo a registro.
+
+	\emph{Modo de direccionamiento del destino}: indirecto mediante
+		registro.
+	\end{verse}
+
+\item \textbf{cargar8 \emph{destino}, \emph{fuente}}
+	\begin{verse}
+	\emph{Descripción}: lee de memoria (fuente) un dato de 8 bits y lo
+		almacena en un registro (destino).
+
+	\emph{Modo de direccionamiento del destino}: directo a registro.
+
+	\emph{Modo de direccionamiento del fuente}: indirecto mediante
+		registro.
+	\end{verse}
+
+\item \textbf{guardar8 \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: escribe en memoria (destino) un dato de 8 bits
+		que está almacenado en un registro(fuente).
+
+	\emph{Modo de direccionamiento del fuente}: directo a registro.
+
+	\emph{Modo de direccionamiento del destino}: indirecto mediante
+		registro.
+	\end{verse}
+
+\item \textbf{cargar\_i \emph{destino}, \emph{fuente}}
+	\begin{verse}
+	\emph{Descripción}: lee de memoria (fuente) un dato que almacena en
+		un registro(destino).
+
+	\emph{Modo de direccionamiento del destino}: directo a registro.
+
+	\emph{Modo de direccionamiento del fuente}: inmediato.
+	\end{verse}
+
+\item \textbf{guardar\_i \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: escribe en memoria (destino) un dato que esta
+		almacenado en un registro(fuente).
+
+	\emph{Modo de direccionamiento del fuente}: directo a registro.
+
+	\emph{Modo de direccionamiento del destino}: directo a memoria.
+	\end{verse}
+\end{itemize}
+
+
+\subsubsection{De gestión de la pila}
+En esta categoría encontramos dos instrucciones que nos permiten almacenar
+y recuperar datos en la pila del sistema.
+
+La pila se utiliza para el paso de parámetros cuando realizamos llamadas al
+sistema.
+También se podría usar para implementar subrutinas.
+
+Tan solo tienen un operando de tipo registro, el otro está implícito en el
+registro especial {\em sp} (puntero a pila).
+Por lo tanto solo ocupan dos bytes.
+
+La pila crece hacia arriba, esto es, cuando almacenamos un dato se incrementa
+el puntero a la pila y cuando lo extraemos se decrementa.
+
+\begin{itemize}
+\item \textbf{apilar \emph{fuente}}
+	\begin{verse}
+	\emph{Descripción}: almacena en la pila el operando {\em fuente}.
+
+	\emph{Modo de direccionamiento del operando}: directo a registro.
+	\end{verse}
+
+\item \textbf{desapilar \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: extrae un dato de la pila y lo almacena en
+		{\em destino}.
+
+	\emph{Modo de direccionamiento del operando}: directo a registro.
+	\end{verse}
+\end{itemize}
+
+
+\subsubsection{De control de flujo}
+Aquí están los saltos, que pueden tener uno o dos operandos según sean 
+incondicionales o condicionales.
+Todo salto tiene siempre como último operando el destino del salto, que
+lo normal es que se trate de una etiqueta.
+Los saltos condicionales tienen, además, un operando de tipo registro,
+en función de cuyo valor se realizará o no el salto.
+En total son cuatro:
+
+\begin{itemize}
+\item \textbf{saltar \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: salta incondicionalmente a la dirección
+		{\em destino}.
+
+	\emph{Modo de direccionamiento del destino}: inmediato.
+	\end{verse}
+
+\item \textbf{saltar0 \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: salta a la dirección {\em destino} solo si el
+		operando {\em fuente} es cero.
+
+	\emph{Modo de direccionamiento del fuente}: directo a registro.
+
+	\emph{Modo de direccionamiento del destino}: inmediato.
+	\end{verse}
+
+\item \textbf{saltarP \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: salta a la dirección {\em destino} solo si el
+		operando {\em fuente} es mayor que cero.
+
+	\emph{Modo de direccionamiento del fuente}: directo a registro.
+
+	\emph{Modo de direccionamiento del destino}: inmediato.
+	\end{verse}
+
+\item \textbf{saltarN \emph{fuente}, \emph{destino}}
+	\begin{verse}
+	\emph{Descripción}: salta a la dirección {\em destino} solo si el
+		operando {\em fuente} es menor que cero.
+
+	\emph{Modo de direccionamiento del fuente}: directo a registro.
+
+	\emph{Modo de direccionamiento del destino}: inmediato.
+	\end{verse}
+\end{itemize}
+
+
+\subsubsection{Especiales}
+Aquí hay dos, y ninguna de ellas tiene operandos:
+
+\begin{itemize}
+\item \textbf{nop}
+	\begin{verse}
+	\emph{Descripción}: instrucción de no operación, no hace nada.
+	\end{verse}
+
+\item \textbf{ser\_sis}
+	\begin{verse}
+	\emph{Descripción}: llamada al sistema, pasa el control al núcleo.
+		Los parámetros se pasan a través de la pila, ver la
+		Sección~\ref{Sec: Llamadas al sistema} para más detalles.
+	\end{verse}
+\end{itemize}
+
+
+\section{Llamadas al sistema}
+\label{Sec: Llamadas al sistema}
+
+En esta sección vamos a ver como realizar una llamada al sistema y qué
+servicios proporciona el núcleo de Eafitos al programador.
+
+\subsection{Realizando una llamada}
+El núcleo proporciona un conjunto de servicios que el programador puede
+utilizar mediante la instrucción {\em ser\_sis}.
+Pero antes de ejecutar dicha instrucción el programador debe almacenar en
+la pila una serie de parámetros, adecuadamente ordenados.
+El número y significado de dichos parámetros dependerán del servicio que
+se solicite, en cualquier caso siempre existe al menos uno.
+El último parámetro que se introduce en la pila identifica el servicio
+concreto que requerimos del núcleo.
+Cada parámetro se almacena directamente en la pila si cabe (si es de 32 o
+menos bits), pero existen casos en los que se almacena un puntero a la zona
+de memoria donde se encuentra el parámetro, esto sucede cuando ocupa más
+de cuatro bytes, por ejemplo en el caso de cadenas de caracteres.
+Además, el núcleo siempre devuelve un resultado en el registro 0.
+
+\subsection{Descripción individual de los servicios del sistema}
+
+\subsubsection{Gestión de hilos}
+\begin{itemize}
+\item \textbf{Crear hilo}
+	\begin{verse}
+	\emph{Código}: 1
+
+	\emph{Parámetro}: Dirección en la que empezará a ejecutarse el nuevo
+		hilo.
+
+	\emph{Resultado}: El identificador del nuevo hilo o -1 si la
+		operación ha fracasado.
+
+	\emph{Descripción}: Crea un nuevo hilo del proceso en ejecución.
+	\end{verse}
+
+\item \textbf{Terminar hilo}
+	\begin{verse}
+	\emph{Código}: 2
+
+	\emph{Parámetro}: identificador del proceso que se quiere eliminar.
+
+	\emph{Resultado}: Éxito (0) o fracaso (-1) de la operación.
+
+	\emph{Descripción}: termina el hilo que se especifica.
+	\end{verse}
+
+\item \textbf{Terminar}
+	\begin{verse}
+	\emph{Código}: 3
+
+	\emph{Resultado}: Éxito (0) o fracaso (-1) de la operación.
+
+	\emph{Descripción}: termina el hilo actual (no tiene parámetros).
+	\end{verse}
+\end{itemize}
+
+\subsubsection{Sistema de ficheros}
+\begin{itemize}
+\item \textbf{Cambiar unidad}
+	\begin{verse}
+	\emph{Código}: 10
+
+	\emph{Parámetro}: Identificador de la nueva unidad.
+
+	\emph{Resultado}: Éxito (0) o fracaso (-1) de la operación.
+
+	\emph{Descripción}: Cambia la unidad de disco actual en la cual se
+		está ejecutando el hilo.
+	\end{verse}
+
+\item \textbf{Cambiar directorio}
+	\begin{verse}
+	\emph{Código}: 11
+
+	\emph{Parámetro}: Ruta al nuevo directorio (puntero).
+
+	\emph{Resultado}: Éxito (0) o fracaso (-1) de la operación.
+
+	\emph{Descripción}: Cambia el directorio de actual en el que se
+		está ejecutando el hilo. El nuevo directorio se especifica
+		con una cadena, que puede ser una ruta absoluta, si empieza
+		por `/', o relativa al directorio actual si no.
+	\end{verse}
+
+\item \textbf{Crear fichero}
+	\begin{verse}
+	\emph{Código}: 12
+
+	\emph{Parámetro 1}: Nombre del fichero (puntero).
+
+	\emph{Parámetro 2}: Tipo del fichero, normal (0) o directorio (1).
+
+	\emph{Resultado}: Identificador del nuevo fichero o -1 si la
+		operación ha fracasado.
+
+	\emph{Descripción}: Crea el fichero especificado en la unidad de disco
+		actual. Si el fichero ya existe da un error.
+	\end{verse}
+
+\item \textbf{Abrir fichero}
+	\begin{verse}
+	\emph{Código}: 13
+
+	\emph{Parámetro}: Nombre del fichero (puntero).
+
+	\emph{Resultado}: Identificador del fichero o -1 si la operación
+		ha fracasado.
+
+	\emph{Descripción}: Abre el fichero especificado.
+	\end{verse}
+
+\item \textbf{Cerrar fichero}
+	\begin{verse}
+	\emph{Código}: 14
+
+	\emph{Parámetro}: Identificador del fichero.
+
+	\emph{Resultado}: Éxito (0) o fracaso (-1) de la operación.
+
+	\emph{Descripción}: Cierra el fichero especificado.
+	\end{verse}
+
+\item \textbf{Borrar fichero}
+	\begin{verse}
+	\emph{Código}: 15
+
+	\emph{Parámetro}: Nombre del fichero (puntero).
+
+	\emph{Resultado}: Éxito (0) o fracaso (-1) de la operación.
+
+	\emph{Descripción}: Borra el fichero especificado.
+	\end{verse}
+
+\item \textbf{Leer fichero}
+	\begin{verse}
+	\emph{Código}: 16
+
+	\emph{Parámetro 1}: Identificador del fichero.
+
+	\emph{Parámetro 2}: Dirección de memoria donde se almacenará la
+		información.
+
+	\emph{Parámetro 3}: Número de bytes a leer.
+
+	\emph{Resultado}: Número de bytes leídos o -1 si la operación ha
+		fracasado.
+
+	\emph{Descripción}: Lee un número de bytes dado del fichero
+		especificado.
+	\end{verse}
+
+\item \textbf{Escribir fichero}
+	\begin{verse}
+	\emph{Código}: 17
+
+	\emph{Parámetro 1}: Identificador del fichero.
+
+	\emph{Parámetro 2}: Dirección de memoria origen de la información.
+
+	\emph{Parámetro 3}: Número de bytes a escribir.
+
+	\emph{Resultado}: Número de bytes escritos o -1 si la operación ha
+		fracasado.
+
+	\emph{Descripción}: Lee un número de bytes dado del fichero
+		especificado.
+	\end{verse}
+
+\item \textbf{Saltar fichero}
+	\begin{verse}
+	\emph{Código}: 18
+
+	\emph{Parámetro 1}: Identificador del fichero.
+
+	\emph{Parámetro 2}: Desplazamiento.
+
+	\emph{Parámetro 3}: Posición base.
+
+	\emph{Resultado}: Nueva posición dentro del fichero o -1 si la
+		operación ha fracasado.
+
+	\emph{Descripción}: Modifica la posición actual dentro del fichero
+		especificado, la nueva posición se obtiene sumando el
+		desplazamiento a la posición base, que puede ser el
+		principio del fichero (0) o la posición actual (1).
+	\end{verse}
+\end{itemize}
+
+\subsubsection{Ejecución de programas}
+\begin{itemize}
+\item \textbf{Ejecutar}
+	\begin{verse}
+	\emph{Código}: 20
+
+	\emph{Parámetro}: Nombre del fichero (puntero).
+
+	\emph{Resultado}: Identificador del nuevo hilo o -1 si la operación ha
+		fracasado.
+
+	\emph{Descripción}: Ejecuta el fichero especificado.
+	\end{verse}
+\end{itemize}
+
+\subsubsection{Entrada/Salida}
+\begin{itemize}
+\item \textbf{Obtener carácter}
+	\begin{verse}
+	\emph{Código}: 30
+
+	\emph{Resultado}: Devuelve el carácter leído.
+
+	\emph{Descripción}: Lee un carácter de la entrada estándar.
+	\end{verse}
+
+\item \textbf{Imprimir carácter}
+	\begin{verse}
+	\emph{Código}: 31
+
+	\emph{Parámetro}: Carácter que se quiere imprimir.
+
+	\emph{Resultado}: Devuelve siempre 0.
+
+	\emph{Descripción}: Imprime un carácter en la salida estándar.
+	\end{verse}
+\end{itemize}
+
+
+\section{Ejemplo}
+\label{Sec: Ejemplo}
+En la Figura~\ref{Fig: hola mundo} tenemos el típico programa de ejemplo que
+escribe el mensaje ``¡Hola mundo!'' en la pantalla.
+
+\begin{figure}
+	\verbatimtabinput{../../ejemplos/hola}
+	\caption{Programa de ejemplo, escribe tres veces un mensaje.}
+	\label{Fig: hola mundo}
+\end{figure}
+
+En primer lugar está la declaración de variables, en este caso solo hay una.
+Su nombre es ({\em mensaje}), es de tipo cadena y representa el mensaje que
+vamos a imprimir (observar que está acabado en \verb|\n|, símbolo que el
+compilador traduce a una nueva línea, el compilador también entiende el
+símbolo \verb|\t| que representa un tabulador, como en C).
+
+Después se encuentra el código, que se divide en dos partes, un bloque
+de inicialización y un bucle.
+
+Primero cargamos el registro número 1 con el número del servicio del sistema
+que vamos a utilizar, el que imprime un carácter por las salida estándar
+Después cargamos el registro 2 con la dirección de memoria donde se almacena
+la cadena.
+Finalmente cargamos en el registro 3 una cantidad fija que sumaremos al
+registro 2 para recorrer la cadena.
+
+La etiqueta {\em bucle} identifica la dirección de memoria donde empieza el
+bucle.
+Empieza cargando en el registro 4 el carácter que vamos a imprimir y
+comprobamos que sea distinto de cero (el cero es el valor que representa el
+final de una cadena).
+Después se realiza la llamada al sistema, primero apilamos los dos parámetros
+necesarios (el carácter que queremos imprimir, registro 4, y el número del
+servicio del sistema, registro 1) y después ejecutamos la llamada.
+Finalmente se incrementa el registro 2 para que apunte al siguiente carácter
+de la cadena y se salta al principio del bucle.
+El bucle terminará cuando se encuentre el carácter de final de cadena
+(valor 0), lo cual provoca un salto al final del programa
+(etiqueta \verb fin ).
+
+
+\section{Programación avanzada}
+
+\subsection{Manejo de Ficheros}
+Todos los procesos tienen asociados una tabla de ficheros.
+Cuando se abre o crea un fichero se utiliza una entrada de la tabla.
+Las llamadas abrir y crear devuelven un identificador (un índice dentro de
+la tabla) con el que después se podrá utilizar para trabajar con el fichero.
+
+Las llamadas al sistema relacionadas con el sistema de ficheros pueden ser
+utilizadas con cualquier identificador de fichero.
+Pero además, las dos primeras entradas (identificadores 0 y 1) se usan de
+forma implícita en las llamadas al sistema de entrada/salida; en concreto,
+el fichero 0 es la entrada estándar, se utiliza en la llamada
+\textbf{Obtener Carácter}, y el fichero 1 es la salida estándar, se utiliza
+en la llamada \textbf{Imprimir Carácter}.
+Por defecto la entrada estándar es el teclado y la salida estándar es la
+pantalla.
+
+\subsubsection{Redireccionar la entrada/salida estándar}
+Cuando se abre o se crea un fichero el identificador devuelto se corresponde
+siempre con el de la primera entrada libre de la tabla.
+Así, para redireccionar la entrada estándar lo que tenemos que hacer es
+cerrar el fichero número 0 e inmediatamente después abrir (o crear) el
+fichero que queremos sea la nueva entrada estándar.
+
+El fichero \emph{ejemplos/es} es un programa de ejemplo que ilustra como
+redireccionar la salida estándar.
+
+\subsubsection{Acceso a dispositivos de tipo carácter}
+Los dispositivos de tipo carácter se pueden acceder como si se tratara de
+ficheros normales.
+Cada dispositivo de tipo carácter tiene un nombre especial que podemos
+utilizar para abrirlo.
+El nombre del teclado es ``--teclado--'' y el nombre de la pantalla es
+``--pantalla--''.

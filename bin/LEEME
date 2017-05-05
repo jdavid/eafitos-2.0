@@ -1,0 +1,4 @@
+Este directorio contiene los binarios para DOS y GNU/Linux.
+
+	eafitos2	Ejecutable estático para GNU/Linux.
+	eafitos2.exe	Ejecutable para DOS.

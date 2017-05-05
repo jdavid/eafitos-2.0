@@ -1,0 +1,52 @@
+digraph G {
+	rankdir="LR";
+
+	2 [peripheries = 2];
+	4 [peripheries = 2];
+	6 [peripheries = 2];
+	7 [peripheries = 2];
+
+	"NUEVA_LINEA" [shape=plaintext, fontname="Times-Bold"];
+	"FINAL_FICHERO" [shape=plaintext, fontname="Times-Bold"];
+	"ID" [shape=plaintext, fontname="Times-Bold"];
+	"PALABRA CLAVE" [shape=plaintext, fontname="Times-Italic"];
+	"CADENA" [shape=plaintext, fontname="Times-Bold"];
+	"LITERAL_NUMERICO" [shape=plaintext, fontname="Times-Bold"];
+	"REGISTRO" [shape=plaintext, fontname="Times-Bold"];
+	"COMA" [shape=plaintext, fontname="Times-Bold"];
+
+
+	0 -> 0 [fontname="Courier", fontsize="10", label="[\ \t\f\v\r]"];
+
+	0 -> 1 [fontname="Courier", fontsize="10", label=";"];
+	1 -> 1 [fontname="Courier", fontsize="10", label="[^\n]"];
+	1 -> 0 [fontname="Courier", fontsize="10", label="\n"];
+
+	0 -> 2 [fontname="Courier", fontsize="10", label="\n"];
+	2 -> 2 [fontname="Courier", fontsize="10", label="[\ \t\f\v\r\n]"];
+	2 -> 3 [fontname="Courier", fontsize="10", label=";"];
+	3 -> 3 [fontname="Courier", fontsize="10", label="[^\n]"];
+	3 -> 2 [fontname="Courier", fontsize="10", label="\n"];
+	2 -> "NUEVA_LINEA" [style=dotted, label=""];
+
+	0 -> "FINAL_FICHERO" [style=dotted, label="EOF"];
+
+	0 -> 4 [fontname="Courier", fontsize="10", label="[a-zA-Z]"];
+	4 -> 4 [fontname="Courier", fontsize="10", label="[a-zA-Z0-9_]"];
+	4 -> "ID" [style=dotted, label=""];
+	4 -> "PALABRA CLAVE" [style=dotted, label=""];
+
+	0 -> 5 [fontname="Courier", fontsize="10", label="\""];
+	5 -> 5 [fontname="Courier", fontsize="10", label="[^\"]"];
+	5 -> "CADENA" [style=dotted, label="\""];
+
+	0 -> 6 [fontname="Courier", fontsize="10", label="#"];
+	6 -> 6 [fontname="Courier", fontsize="10", label="[0-9]"];
+	6 -> "LITERAL_NUMERICO" [style=dotted, label=""];
+
+	0 -> 7 [fontname="Courier", fontsize="10", label="@"];
+	7 -> 7 [fontname="Courier", fontsize="10", label="[0-9]"];
+	7 -> "REGISTRO" [style=dotted, label=""];
+
+	0 -> "COMA" [style=dotted, label=","];
+}

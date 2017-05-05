@@ -1,0 +1,75 @@
+\chapter{El núcleo: Introducción}
+\label{Cap: Nucleo}
+
+El núcleo se divide en cinco partes: el manejador de memoria, el manejador
+de hilos y procesos, los dispositivos de tipo carácter, los dispositivos de
+tipo bloque y el sistema de ficheros virtual.
+Dichos elementos están contenidos en la clase \id{Nucleo,} y los estudiaremos
+\marginnote{Ver include/nucleo.h}
+por separado en los capítulos siguientes.
+
+\section{Iniciar y terminar}
+La inicialización y la terminación del núcleo consiste en la inicialización
+y terminación de sus partes.
+Los métodos \id{iniciar} y \id{terminar} son los encargados
+de hacer esta tarea.
+
+\section{Llamadas al sistema}
+Las llamadas al sistema proporcionan ciertos servicios que el programador
+puede utilizar.
+Además de las cinco partes del núcleo arriba señaladas, existe un interfaz
+de llamadas al sistema, el cual está implementado en el método
+\id{Nucleo::llamada.}
+\marginnote{Ver nucleo/nucleo.cpp}
+La Figura~\ref{Fig: Llamadas} muestra un esquema de esto, como se puede
+observar, \id{llamada} es una especie de multiplexor que, en función del
+valor almacenado en la cima de la pila, llama a otro método de algún otro
+subsistema del núcleo.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/llamadas.eps}
+	\caption[Esquema básico del núcleo y las llamadas al sistema.]
+		{Esquema básico del núcleo y las llamadas al sistema.
+		El dibujo está muy simplificado, tan solo pretende
+		ilustrar la relación entre el procesador, el interfaz de
+		llamadas y el resto del núcleo. Las relaciones que muestran
+		las flechas internas del núcleo son incompletas.}
+	\label{Fig: Llamadas}
+\end{figure}
+
+\subsection{Añadir nuevas llamadas}
+Añadir una nueva llamada al sistema es fácil.
+Primero hay que definir una nueva constante para la nueva llamada, esto se
+hace al principio del fichero ``include/nucleo.h''; después se añade una
+entrada dentro del bloque \id{switch} en el método \id{Nucleo::llamada} que
+se encuentra en el fichero ``nucleo/nucleo.cpp'', en dicho código lo único
+que se debe hacer es desapilar los parámetros y llamar al método del núcleo
+que corresponda; finalmente, quedarán por hacer las modificaciones necesarias
+al resto del núcleo para que la llamada haga lo que se quiera.
+
+
+\section{Interrupciones de reloj}
+\label{Sec: Reloj}
+Los sistemas reales disponen de una interrupción de reloj que produce el
+hardware siempre a intervalos de tiempo regulares.
+Al producirse dicha interrupción deja de ejecutarse momentáneamente el
+proceso que se estuviera ejecutando y se ejecuta una rutina de servicio.
+Dicha rutina se dedica a realizar tareas varias que pueden desencadenar,
+por ejemplo, el cambio del proceso en ejecución.
+
+En Eafitos esto está simulado de la siguiente manera: antes de ejecutar
+cada instrucción el procesador de la máquina virtual
+\footnote{Ver Sección~\ref{Sec: Procesador}.}
+llama al método \id{Nucleo::reloj,} esto es ``la generación de la interrupción
+de reloj''; y el método \id{Nucleo::reloj} es ``la rutina de servicio de la
+interrupción de reloj''.
+
+El método \id{Nucleo::reloj} lo que hace es llamar a otros tres métodos:
+\begin{quote}
+\begin{itemize}
+\item \id{DispositivosCaracter::gestionarColas}
+\item \id{DispositivosBloque::gestionarColas}
+\item \id{ManejadorProcesos::planificador}
+\end{itemize}
+\end{quote}
+
+Lo qué hacen estos métodos lo veremos en los capítulos siguientes.

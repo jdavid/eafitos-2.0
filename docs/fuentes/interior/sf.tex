@@ -1,0 +1,378 @@
+\chapter{El núcleo: Sistema de ficheros}
+\label{Cap: SF}
+
+Lo normal en la mayoría de sistemas operativos, o al menos en los sistemas
+operativos más utilizados, es que estos tan solo soporten un sistema de
+ficheros propio y en todo caso algún otro heredado de versiones antiguas del
+mismo producto.
+Otros sistemas operativos, sin embargo, tienen soporte para un montón de
+sistemas de ficheros.
+
+En principio Eafitos solo entiende un sistema de ficheros, pero dispone de
+los mecanismos necesarios para crear fácilmente nuevos sistemas de ficheros
+e incorporarlos al núcleo.
+La Figura~\ref{Fig: SFV} muestra un esquema global del sistema de ficheros.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/sfv.eps}
+	\caption{Esquema del sistema de ficheros}
+	\label{Fig: SFV}
+\end{figure}
+
+\section{Relación con los procesos}
+Una de las posibilidades que ofrecen los procesos a los hilos (ver
+Capítulo~\ref{Cap: Hilos}) es el acceso al sistema de ficheros a través de
+su atributo \id{ficherosLocales} (ver Sección~\ref{Sec: Procesos}), en el
+dibujo se puede ver que cada entrada de la tabla de ficheros locales apunta
+a un fichero de la tabla de ficheros globales (\id{SFV::ficheros}).
+
+Cada entrada de dicha tabla es una instancia de la clase \id{FicheroLocal,}
+\marginnote{Ver include/flocal.h}
+es a través de esta clase que se accede al sistema de ficheros. 
+Pero, como ya vimos en el Capítulo~\ref{Cap: Hilos}, un fichero local puede
+apuntar a un controlador de dispositivo de tipo carácter en lugar de a un
+fichero normal (o no apuntar a ningún sitio, si el fichero no está abierto).
+El atributo \id{FicheroLocal::tipo} nos indica a qué referencia el fichero:
+\begin{itemize}
+\item \id{LIBRE} El fichero local está libre.
+\item \id{FICHERO} Referencia a un fichero global del sistema de ficheros
+	virtual.
+	El atributo \id{id} identifica al fichero global
+	\footnote{Los arcos de la Figura~\ref{Fig: SFV} que van de la tabla
+	de ficheros locales a la de ficheros globales vienen definidos por
+	este atributo, \id{FicheroLocal::id}.}
+	y el atributo \id{posicion} indica la posición dentro del fichero en
+	la que realizaremos el próximo acceso.
+\item \id{DISPOSITIVO} Referencia a un controlador de dispositivo de tipo
+	carácter.
+	El atributo \id{controlador} apunta al controlador de tipo carácter.
+\end{itemize}
+
+Para acceder a estos recursos, la clase \id{FicheroLocal} dispone de los
+métodos \id{crear,} \id{abrir,} \id{cerrar,} \id{leer,} \id{escribir} y
+\id{saltar.}
+
+Además de la tabla de ficheros locales los procesos disponen de otros dos
+atributos relevantes.
+El atributo \id{Proceso::unidad} identifica la unidad actual, es un índice
+dentro de la tabla de sistemas de ficheros; el atributo
+\id{Proceso::directorio} identifica el directorio actual, es un índice
+dentro de la tabla de ficheros globales.
+
+
+\section{El sistema de ficheros virtual}
+La Figura~\ref{Fig: SFV} muestra dos tablas dentro del sistema de ficheros,
+ambas tablas forman parte de lo que se llama sistema de ficheros virtual.
+El sistema de ficheros virtual es un interfaz para los sistemas de ficheros
+y está implementado en la clase \id{SFV.}
+
+\subsection{Sistema de ficheros no montado}
+El sistema de ficheros de Eafitos no está montado
+\footnote{Convertir el sistema de ficheros de Eafitos en un sistema montado
+podría ser una buena práctica.}
+(como en DOS y al contrario que UNIX), esto lo simplifica significativamente.
+
+De aquí la necesidad del atributo \id{Proceso::unidad,} que en un sistema de
+ficheros montado no sería necesario.
+En el sistema operativo DOS las unidades se referencian mediante letras (C, D,
+...), en Eafitos se usan números (0, 1, ...).
+
+\subsection{Abstracción de los sistemas de ficheros}
+Igual que los formatos de ficheros ejecutables, los sistemas de ficheros
+también están abstraídos, esto facilita la creación de nuevos sistemas de
+ficheros.
+La Figura~\ref{Fig: Jerarquia SF} muestra la jerarquía de clases existente.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/sfclases.eps}
+	\caption{Jerarquía de clases para los sistemas de ficheros.}
+	\label{Fig: Jerarquia SF}
+\end{figure}
+
+\subsubsection{Creación de nuevos sistemas de ficheros}
+Para crear un nuevo sistema de ficheros hay que definir e implementar dos
+clases, una de ellas hereda de \id{SF} y la otra hereda de \id{Fichero.}
+Si vas a emprender esta tarea fíjate en el sistema de ficheros ya existente.
+
+Además de esto lo único que hay que hacer es modificar el método
+\id{SFV::iniSF.}
+Este método se encarga de inicializar un sistema de ficheros partiendo de un
+controlador de dispositivo de tipo bloque.
+La inicialización consiste en crear una entrada en la tabla de sistemas de
+ficheros (\id{SFV::sf}) y abrir el directorio raíz.
+El fragmento de código a modificar es:
+\begin{quote}
+\begin{verbatim}
+try {
+        sf[n] = new EafitSF(cB);
+}
+catch(...) {
+        throw "sistema de ficheros desconocido";
+}
+\end {verbatim}
+\end{quote}
+y el código modificado: 
+\begin{quote}
+\begin{verbatim}
+try {
+        sf[n] = new EafitSF(cB);
+}
+catch(...) {
+        try {
+                sf[n] = new NuevoSF(cB);
+        }
+        catch(...) {
+                throw "sistema de ficheros desconocido";
+        }
+}
+\end {verbatim}
+\end{quote}
+
+Donde \verb|NuevoSF| es la clase del nuevo sistema de ficheros que desciende
+de \id{SF.}
+Si el dispositivo controlado por el controlador \id{cB} no contiene un sistema
+de ficheros tipo Eafit entonces prueba con el sistema de ficheros Nuevo; de
+este modo se podrían crear cuantos sistemas de ficheros se quisiera, sin
+límites.
+
+\subsubsection{La clase \id{SF}}
+El atributo \id{SFV::sf} es un vector de punteros a la clase \id{SF.}
+De este modo, cada puntero puede apuntar a una instancia de una clase distinta,
+siempre y cuando dicha clase herede de \id{SF.}
+
+El objetivo de esta clase, o mejor dicho, de sus descendientes, es el de
+tratar directamente con el sistema de ficheros; esta es la clase que entiende
+cómo esta organizada la información en el disco.
+
+Un sistema de ficheros no es más que un contenedor de ficheros.
+Dentro de cada sistema de ficheros los ficheros deben quedar identificados
+unívocamente por un número, y el directorio raíz debe ser siempre el fichero
+número 0.
+Por ejemplo, en un sistema de ficheros tipo UNIX (como el que tiene Eafitos)
+los ficheros se identifican por su inodo, mientras que en el sistema FAT de
+DOS los ficheros se identifican por el número de su primer bloque; en cualquier
+caso, siempre se un número.
+
+La clase \id{SF} tiene varios atributos y métodos que son comunes para
+cualquier clase que descienda de ella.
+El atributo \id{dispositivo} apunta al controlador de dispositivo asociado,
+el cual proporciona, como ya sabes, un acceso directo por bloques.
+Los atributos \id{tamBloque} y \id{numBloques} contienen el tamaño del bloque
+y el número de bloques del dispositivo.
+Como ya vimos anteriormente, cuando se inicializa un sistema de ficheros se
+abre su directorio raíz; el atributo \id{dirRaiz} identifica el fichero global
+que representa al directorio raíz abierto.
+Además de estos atributos la clase \id{SF} tiene varios métodos obvios.
+
+Si creas un nuevo sistema de ficheros tendrás que crear una clase que herede
+de \id{SF.}
+Esa nueva clase deberá implementar el método \id{abrir,} el cual abre el
+fichero que se le indica (mediante el número que lo identifica).
+También deberás implementar dos constructores, uno que sirva para inicializar
+el sistema de ficheros y que tan solo reciba como parámetro el controlador de
+bloque, y otro que sirva para dar formato a un disco; probablemente también
+tendrá que escribir un destructor.
+Y por supuesto tendrás que implementar todo lo que el sistema de ficheros
+concreto que estas creando requiera.
+
+\subsubsection{La clase \id{Fichero}}
+De forma similar, el atributo \id{SFV::ficheros} es un vector de punteros
+a la clase \id{Fichero.}
+Esta clase guarda información sobre cada fichero abierto del sistema.
+Su atributo \id{uso} indica cuantos elementos están utilizando este fichero,
+el atributo \id{posicion} indica cual es la posición en la que se hará el
+próximo acceso, el atributo \id{tamBloque} contiene el tamaño del bloque del
+sistema de ficheros y \id{buffer} no es más que un espacio de memoria que
+usaremos para leer y escribir bloques en el sistema de ficheros.
+
+Además de estos atributos, \id{Fichero} tiene definidos un conjunto de métodos
+que deberán ser implementados en las clases descendientes.
+Los métodos \id{es,} \id{obtenerTamano,} \id{finalFichero,} \id{abrir,}
+\id{cerrar,} \id{borrar,} \id{leer,} \id{escribir} y \id{saltar} se deben
+implementar siempre porque son generales para cualquier fichero.
+Sin embargo existen otros métodos que son específicos para directorios y por
+lo tanto solo deberán ser implementados por estos.
+Estos métodos y su significado se describen a continuación:
+\begin{itemize}
+\item \id{idFichero} Dentro de un directorio un fichero se identifica
+	unívocamente por su nombre; este método debe devolver, a partir del
+	nombre del fichero, el número que lo identifica dentro del sistema
+	de ficheros.
+\item \id{existeFichero} Devuelve cierto si existe y falso si no.
+\item \id{crearFichero} Crea y abre el fichero.
+\item \id{borrarFichero} Borra el fichero dado, si existe claro.
+\item \id{infoFichero} Rellena la estructura \id{InfoFichero,} esto se utiliza
+	para listar el contenido de un directorio.
+\end{itemize}
+
+\subsection{Interfaz}
+Vamos a estudiar ahora con cierto detalle la clase \id{SFV.}
+Esta clase tan solo tiene dos atributos que ya hemos visto antes, la tabla de
+ficheros globales, \id{ficheros,} y la tabla de sistemas de ficheros, \id{sf.}
+
+Los métodos \id{iniciar} y \id{terminar} son los encargados, como sus nombres
+indican, de iniciar y terminar el sistema de ficheros.
+Estos métodos son llamados desde el núcleo.
+En concreto el método \id{iniciar} lo que hace es inicializar la tabla de
+sistemas de ficheros, para cada disco formateado crea inicializa una entrada,
+para ello se sirve del método \id{iniSF;} además, para cada sistema de ficheros
+abre su directorio raíz.
+
+El resto de métodos son usados para acceder a los ficheros e implementan, en
+parte, las llamadas al sistema equivalentes.
+Estos métodos son \id{crear,} \id{abrir,} \id{cerrar,} \id{borrar,}
+\id{leer,} \id{escribir,} \id{saltar} e \id{infoFichero;} después de haber
+leído la sección anterior resulta obvio saber qué es lo que hacen.
+
+\subsubsection{Búsqueda de un fichero}
+Algunos de los métodos de \id{SFV} (\id{crear,} \id{abrir} y \id{borrar})
+reciben como parámetro, entre otros, el nombre del fichero sobre el que
+realizar la operación.
+A partir de este nombre hay que, en primer lugar, obtener el identificador
+del fichero.
+El nombre puede ser una ruta absoluta (ejemplo, \emph{/bin/fich}) o una ruta
+relativa al directorio actual (ejemplo, \emph{../fich}).
+Lo que vamos a ver ahora, sin llegar al detalle, es el algoritmo que permite
+obtener el identificador del fichero a partir de su nombre.
+
+Antes de seguir adelante te aconsejo que cojas el código y leas lo que sigue
+comprobando la implementación de alguno de estos métodos.
+La explicación que viene a continuación se refiere al método \id{abrir,} la
+implementación de los otros métodos es muy parecida.
+
+Lo primero que se debe determinar es si la ruta es absoluta o relativa (esto
+se hace en función del primer carácter del nombre), si la ruta es absoluta
+se empezará buscando desde el directorio raíz y si es relativa se empezará
+desde el directorio actual (ambos directorios están abiertos y son conocidos).
+A continuación nos introducimos en un bucle, con cada iteración del bucle
+buscamos el siguiente subdirectorio, si el subdirectorio ya está abierto
+aprovechamos su entrada en la tabla de ficheros globales y si no lo está lo
+abrimos temporalmente con \id{SF::abrir;} si el subdirectorio no existe se
+aborta la operación y se genera un error.
+La ejecución del bucle termina cuando llegamos al último elemento del nombre
+del fichero, entonces, si todo ha salido bien habremos obtenido su
+identificador y podremos abrirlo.
+
+
+\section{El sistema de ficheros Eafit}
+Se trata de un sistema de ficheros tipo UNIX.
+
+\subsection{Estructura en disco}
+En la Figura~\ref{Fig: Eafit SF} puedes ver cómo divide el disco este sistema
+de ficheros.
+La clase \id{EafitSF,} que desciende de \id{SF,} es la encargada de gestionar
+el sistema de ficheros a este nivel.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/eafitsf.eps}
+	\caption{Sistema de ficheros Eafit}
+	\label{Fig: Eafit SF}
+\end{figure}
+
+\subsubsection{El superbloque}
+El primer bloque del disco está ocupado por el superbloque.
+Este contiene cierta información global empezando por un número que identifica
+al sistema de ficheros Eafit, este número se escribe cuando se da formato a
+un disco y se busca al inicializar (si no lo encuentra no inicializa el
+sistema de ficheros).
+
+Además del número de identificación el superbloque contiene 8 datos más que
+identifican los números de bloque donde empiezan el resto de zonas del sistema
+de ficheros (mapas de inodos y de bloques de datos, inodos y datos), y el
+número de bloques que ocupan.
+Como puedes ver hay información redundante, esta redundancia evita tener que
+hacer cálculos al inicializar.
+El superbloque está definido en la clase \id{SuperbloqueESF.}
+
+\subsubsection{Los mapas de inodos y de datos}
+Los mapas de inodos y de datos nos indican si un inodo (o un bloque de datos)
+está libre u ocupado.
+Para hacer esto solamente es necesario un bit pero este sistema de ficheros
+gasta un byte (para simplificar), algo que podría cambiar en versiones
+posteriores.
+
+\subsubsection{Los inodos}
+Cada fichero tiene un inodo que recoge cierta información sobre el fichero.
+Cada inodo ocupa 64 bytes.
+Los inodos están definidos en la clase \id{InodoESF,} cuyos campos son:
+\begin{itemize}
+\item \id{tamano} El tamaño del fichero.
+\item \id{tipo} Puede ser \id{NORMAL} o \id{DIRECTORIO.}
+\item \id{reservado} 27 bytes para uso futuro.
+\item \id{bloquesDirectos} Un vector de siete entradas, cada una es un número
+	de bloque, cada uno de los cuales almacena los datos del fichero.
+\item \id{bloquesIndirectos} Es el número de un bloque, el cual contiene a su
+	vez más números de bloques donde podremos encontrar más datos del
+	fichero.
+\end{itemize}
+
+\subsubsection{Datos}
+Aquí es donde se almacena el contenido de los ficheros.
+
+\subsection{Ficheros}
+Los ficheros están implementados en la clase \id{EFichero,} básicamente esta
+clase lo que hace es proporcionar algunos métodos para acceder a los ficheros
+(leer, escribir,...).
+
+Sin duda lo más complicado de esta parte es la lectura y escritura.
+Los métodos \id{leer} y \id{escribir} hacen uso de los métodos
+\id{obtenerBloque} y \id{reservarBloque,}.
+
+El método \id{obtenerNBloque} devuelve el número de bloque del sistema de
+ficheros que corresponde al atributo \id{poscion,} si la posición está fuera
+del fichero se genera un error.
+El método \id{reservarBloque} es similar a \id{obtenerNBloque} excepto en que
+si la posición está fuera del fichero en lugar de generar un error aumenta el
+tamaño del fichero y si es necesario reserva un nuevo bloque.
+Como habrás imaginado el primer método se usa para leer y el segundo para
+escribir.
+
+
+
+\subsubsection{Directorios}
+Los directorios están implementados por la clase \id{EDirectorio,} que
+desciende de la clase \id{EFichero} y por lo tanto hereda su funcionalidad.
+
+El contenido de los directorios está dividido en entradas de longitud fija
+(32 bytes) definidas en la clase \id{EEntradaDirectorio.}
+Los campos de cada entrada son:
+\begin{itemize}
+\item \id{nInodo} Si tiene un valor negativo significa que la entrada está
+	libre, si el valor es positivo identifica al número de inodo del
+	fichero.
+\item \id{nombre} El nombre del fichero, máximo 20 caracteres.
+\item \id{reservado} Ocho bytes para uso futuro.
+\end{itemize}
+
+Todos los directorios excepto el directorio raíz tienen siempre una entrada
+ocupada (\emph{..}), esta entrada hace referencia al directorio padre. 
+
+
+\section{Recorrido de una llamada al sistema de ficheros}
+Ya hemos visto todo el sistema de ficheros, esta sección lo que pretende es
+dar otro enfoque al problema para mejorar la comprensión del sistema.
+Para ello vamos a ver las clases por las que pasa una llamada al sistema
+de ficheros.
+Por ejemplo una llamada para leer uno o más bytes de un fichero ya abierto.
+
+La llamada nace de la instrucción \textbf{ser\_sis}, cuando el procesador la
+encuentra realiza la pertinente llamada al núcleo, al método
+\id{Nucleo::llamada.}
+El núcleo recibe la llamada, la decodifica y llama al método que corresponda
+del proceso actual, en este caso \id{Proceso::leer.}
+El proceso repite la llamada al sistema de ficheros virtual, \id{SFV::leer,}
+y este llama al fichero, \id{Fichero::leer.}
+A partir de aquí la operación se resuelve con una o más llamadas a la clase
+encargada de gestionar el sistema de ficheros concreto (en nuestro caso
+\id{EafitSF}), esto desencadenará a su vez llamadas al controlador de
+dispoositivo y de ahí al dispositivo.
+Una vez la operación se haya ejecutado se recorrerá el camino inverso: del
+fichero al sistema de ficheros virtual, después al proceso, al núcleo y
+finalmente el control regresa al procesador.
+
+La descripción anterior ha sido realizada sin tener en cuenta que las llamadas
+al subsistema de entrada/salida provocan, como ya vimos en anteriores
+capítulos, la suspensión del hilo que la realizó.
+Por lo tanto la realidad es significativamente más compleja, de todos modos
+espero que esta descripción haya dado una idea más coherente del sistema
+de ficheros y de lo que sucede cuando se produce una llamada.
+Ahora tan solo queda estudiar el código fuente, modificarlo a tu gusto, y si
+algo no te ha quedado claro... volver a leer esta documentación (o preguntarme
+a mi $\smile$).

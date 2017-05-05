@@ -1,0 +1,73 @@
+\chapter{Práctica: semáforos}
+
+\section{Planteamiento}
+Eafitos es un sistema operativo multitarea, pero no dispone de ningún
+mecanismo de sincronización entre hilos.
+Esto convierte la multitarea en algo bastante inútil.
+El objetivo de esta práctica es implementar un mecanismo de sincronización
+con el cual sea fácil controlar el acceso a secciones críticas de código.
+
+
+\section{Solución}
+El mecanismo elegido para implementar son los semáforos.
+
+Vamos a implementar dos nuevas llamadas al sistema que recibirán un solo
+parámetro.
+Ese parámetro será una dirección de memoria y actuará a modo de cerradura.
+Una llamada servirá para reservar una cerradura y la otra para liberarla.
+Cuando un hilo solicite una cerradura, si no está reservada se le
+concederá y seguirá ejecutándose, si está reservada el hilo pasará a suspendido
+hasta que la cerradura que solicitó sea liberada.
+
+Para implementar esto primero crearemos dos nuevas clases llamadas
+\id{Semaforo} y \id{Semaforos} (encontraras su código en la
+Sección~\ref{Sec: Codigo Semaforo}.
+
+Además, habrá que hacer otras tres pequeñas modificaciones:
+\begin{itemize}
+\item Añadir un atributo más a la clase \id{Nucleo}:
+\begin{quote}
+\begin{verbatim}
+static Semaforos semaforos;
+\end{verbatim}
+\end{quote}
+
+\item
+Definir dos nuevas constantes en \emph{include/nucleo.h}:
+\begin{quote}
+\begin{verbatim}
+#define RESERVAR_CERRADURA 4
+#define LIBERAR_CERRADURA 5
+\end{verbatim}
+\end{quote}
+
+\item
+Añadir dos entradas en el bloque \id{switch} del método \id{Nucleo::llamada:}
+\begin{quote}
+\begin{verbatim}
+case RESERVAR_CERRADURA:
+        param1 = cpu.desapilar();
+        Nucleo::semaforos.reservar(param1);
+        break;
+case LIBERAR_CERRADURA:
+        param1 = cpu.desapilar();
+        Nucleo::semaforos.liberar(param1);
+        break;
+\end{verbatim}
+\end{quote}
+\end{itemize}
+
+\section{Código nuevo}
+\label{Sec: Codigo Semaforo}
+\begin{codigo}
+\verbatimtabinput{../../pracs/semaforo/semaforo.h}
+\newpage
+\verbatimtabinput{../../pracs/semaforo/semaforo.cpp}
+\newpage
+\end{codigo}
+
+\section{Ejemplo}
+El código que viene a continuación es un ejemplo de programa de Eafitos
+que hace uso de los semáforos.
+
+\verbatimtabinput{../../pracs/semaforo/semaforo}

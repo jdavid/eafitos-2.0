@@ -1,0 +1,270 @@
+\chapter{La Máquina Virtual}
+
+La Máquina Virtual simula un ordenador real.
+\marginnote{Ver include/mv.h}
+Consta de varios componentes: la memoria, la unidad de gestión de memoria,
+el procesador y los dispositivos (actualmente un teclado, una pantalla y
+uno o más discos duros).
+En la Figura~\ref{Fig: Maquina Virtual} se puede observar un dibujo que
+refleja la estructura de la máquina virtual.
+Cómo se puede ver, no hay relación entre los dispositivos y el procesador;
+en los sistemas reales existen diversos mecanismos (interrupciones, acceso
+directo a memoria, puertos de entrada/salida,...) que en Eafitos se han
+obviado para simplificar.
+
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/maq_vir.eps}
+	\caption{Estructura de la máquina virtual.}
+	\label{Fig: Maquina Virtual}
+\end{figure}
+
+
+\section{La memoria}
+La memoria está implementada como la clase \id{MemFis.}
+\marginnote{Ver include/memfis.h}
+Fundamentalmente consta de un vector de bytes, que representa a la memoria
+en sí, y de los métodos que permiten acceder a ella, a nivel de byte,
+\id{leerByte} y \id{escribirByte}, o a nivel de palabra (cuatro bytes),
+\id{leerPalabra} y \id{escribirPalabra.}
+
+
+\section{Unidad de gestión de memoria}
+La unidad de gestión de memoria, o MMU (Memory Management Unit), proporciona
+\marginnote{Ver include/mmu.h}
+facilidades al núcleo para la gestión de memoria y es la responsable de
+calcular las direcciones físicas de memoria a partir de direcciones lógicas.
+
+La gestión de memoria de la máquina virtual sigue un modelo que combina
+segmentación y paginación.
+Existe una única tabla de segmentos (el vector \id{MMU::segmentos}) y cada
+segmento define un conjunto de páginas (\id{Segmento::paginas}). 
+
+\subsection{Cálculo de la dirección física}
+En la Figura~\ref{Fig: De logica a fisica} puedes ver un dibujo ilustrativo.
+\marginnote{Ver MMU::logicaAFisica en include/mmu.cpp}
+El \emph{selector de segmento} indica qué segmento utilizar para el cálculo.
+Una vez tenemos el segmento se obtiene la página lógica mediante el
+\emph{selector de página}.
+La página lógica nos da la página física.
+Ahora calculamos la dirección física con la siguiente ecuación:
+\begin{quote}\small
+	(\emph{página física} * \emph{tamaño de página}) +
+	\emph{desplazamiento} = \emph{dirección física}
+\normalsize\end{quote} 
+donde \emph{tamaño de página} es una constante.
+
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/log_fis.eps}
+	\caption{Traducción de una dirección lógica a una dirección física}
+	\label{Fig: De logica a fisica}
+\end{figure}
+
+Pero, ¿de donde sale la dirección lógica?
+El \emph{selector de segmento} es un registro especial de la CPU.
+Existen dos de estos registros, se utiliza uno u otro dependiendo de la
+instrucción que se ejecute; es por lo tanto una selección implícita,
+un mecanismo transparente para el programador.
+En la Sección~\ref{Sec: Procesador} veremos esto con más detalle.
+
+Por otro lado, el \emph{selector de página} y el \emph{desplazamiento}
+constituyen las direcciones de 32 bits que el programador maneja;
+dichas direcciones están contenidas en registros de manipulables por el
+programador: los registros generales, el contador de programa y el puntero
+de pila.
+El número de bits que ocupan ambos campos, \emph{selector de página} y
+\emph{desplazamiento}, depende del \emph{tamaño de página}, el cual está
+definido por la constante \id{TAM\_PAGINA.}
+En principio el valor de dicha constante es 1024, por lo tanto el
+\emph{selector de página} ocupa 10 bits y el \emph{desplazamiento} ocupa 22.
+Puedes modificar el \emph{tamaño de página} con la única condición de que
+sea potencia de 2.
+
+\subsection{Reservar y liberar memoria}
+Además de la tabla de segmentos, la unidad de gestión de memoria contiene
+un vector (\id{MMU::paginas}) que contiene información sobre cada página
+física.
+En concreto, la información almacenada nos indica si la página está libre u
+ocupada.
+Este vector, junto con el atributo \id{MMU::nPaginasLibres} (indica el
+número de páginas libres que quedan), le sirve a la MMU para ayudarse en
+la gestión de la memoria.
+
+\subsubsection{Solicitando memoria}
+El método \id{MMU::asignar} sirve para solicitar una determinada cantidad
+de memoria.
+La MMU reserva un segmento y las páginas físicas necesarias (si existe
+suficiente memoria libre) y devuelve el selector del segmento que se ha
+reservado.
+
+También se puede incrementar el \emph{uso} (\id{Segmento::uso}) de un
+segmento que ya esté ocupado con el método \id{MMU::reservar,} esto permite
+la compartición de memoria.
+
+\subsubsection{Liberando memoria}
+El método \id{MMU::liberar} reduce el uso del segmento indicado.
+Si el segmento ya no se utiliza (su uso es cero) libera la memoria que tiene
+asociada y el propio segmento.
+
+
+\section{El procesador}
+\label{Sec: Procesador}
+
+La clase \id{CPU} representa al procesador.
+\marginnote{Ver include/cpu.h}
+El objetivo esencial de esta unidad es el de ejecutar instrucciones.
+
+\subsection{Contexto}
+\label{Sec: Contexto}
+El procesador de la máquina virtual tiene un conjunto de registros, algunos
+de los cuales ya vimos en la Sección~\ref{Sec: Registros} desde el punto de
+vista del programador.
+Ahora vamos a verlos todos con más detalle.
+
+Los registros están definidos en la clase \id{Contexto,} ya que forman el
+contexto de ejecución de un hilo.
+\marginnote{Ver include/contexto.h}
+
+Por un lado tenemos 16 registros generales (\id{Contexto::registros}) para
+uso del programador.
+También hay un contador de programa (\id{Contexto::pc}) y un puntero de pila
+(\id{Contexto::sp}).
+
+Finalmente, tenemos dos registros especiales, \id{Contexto::codigo} y
+\id{Contexto::pila;} estos registros son selectores de segmento.
+El registro de \emph{pila} se utiliza en las instrucciones de acceso a la
+pila y el de \emph{codigo} en el resto de instrucciones.
+El programador no tiene forma alguna de modificar estos registros, ni
+explicita ni implícitamente.
+
+\subsection{Acceso a memoria}
+En la clase \id{CPU} hay varios métodos definidos para acceder a memoria.
+\marginnote{Ver mv/cpu.cpp}
+Estos métodos permiten leer y escribir bytes y palabras, son
+\id{CPU::leerByte,} \id{CPU::escribirByte,} \id{CPU::leerPalabra} y
+\id{CPU::escribirPalabra.}
+
+\subsubsection{Lectura de instrucciones y operandos}
+Por otro lado los métodos \id{CPU::leerOpByte} y \id{CPU::leerOpPalabra} leen
+de la memoria utilizando el {\em contador de programa} como dirección.
+Estos métodos se utilizan para leer las instrucciones y sus operandos
+inmediatos.
+Además de leer de memoria actualizan automáticamente el {\em contador de
+programa}.
+
+\subsubsection{La pila}
+A la pila se accede mediante los métodos \id{CPU::apilar} y
+\id{CPU::desapilar.}
+Es en estos métodos donde está definido su comportamiento.
+En concreto, la pila está implementada para crecer hacia ``arriba'', es decir,
+cuando se apila un dato el {\em puntero de pila} (\id{CPU::contexto.sp}) se
+incrementa y cuando se desapila se decrementa.
+
+
+\subsection{Ejecución de instrucciones}
+Los métodos principales del procesador son \id{ejecutarPaso} y \id{ejecutar.}
+El primero ejecuta una instrucción mientras que el segundo llama al primero
+para ejecutar instrucciones hasta que no quede ninguna, es decir, hasta que
+todos los hilos hayan terminado.
+\footnote{La razón para distinguir entre dos métodos es la de facilitar la
+construcción de un depurador. Así, sería fácil ejecutar instrucciones
+``paso a paso''.}
+
+Las excepciones que se puedan provocar como consecuencia de la ejecución de
+una instrucción (ej: fallo de página) se capturan en \id{CPU::ejecutar} y
+provocan la terminación del hilo.
+
+El método \id{CPU::ejecutarPaso} es muy sencillo, aunque extenso.
+Para empezar se ejecuta el método \id{Nucleo::reloj,} el cual cede el control
+al núcleo.
+Esto simula las interrupciones de reloj que se producen cada cierto tiempo
+en las máquinas reales, solo que en este caso se ``producen'' antes de
+ejecutar cada instrucción.
+¿Y qué es lo que hace el núcleo en esas \emph{interrupciones de reloj}?
+Eso se estudiará cuando veamos el núcleo, en los siguientes capítulos.
+
+Una vez hecho esto, se pasa a ejecutar una instrucción.
+Primero se adquiere el código de instrucción; después se decodifica, lo cual
+consiste en saltar dentro del \id{switch} al lugar adecuado; finalmente se
+adquieren los operandos y se ejecuta.
+Mejor le hechas un vistazo al código.
+
+
+\section{Dispositivos}
+\subsection{El teclado}
+El teclado virtual sencillamente nos proporciona la posibilidad de leer un
+carácter del teclado real.
+\marginnote{Ver include/teclado.h}
+
+\subsection{La pantalla}
+La pantalla virtual sencillamente nos proporciona la posibilidad de escribir
+un carácter en la pantalla real.
+\marginnote{Ver include/pantalla.h}
+
+\subsection{Los discos}
+Este es el dispositivo más complicado.
+Al contrario que el teclado y la pantalla, la máquina virtual puede contener
+varios discos, tantos como indica la constante \id{NUM\_DISCOS.}
+\marginnote{Ver include/disco.h}
+
+Un disco es, en la máquina real, un fichero que reside en el directorio
+``$\backslash$EAFITOS'' o ``\$HOME/EAFITOS'', dependiendo de si el Sistema
+Operativo anfitrión es DOS o GNU/Linux; el nombre del fichero es
+DISCO\_\emph{n}, donde \emph{n} es el número del disco (de 0 a
+\id{NUM\_DISCOS}-1).
+
+El disco se divide en bloques de igual tamaño.
+El número de bloques y su tamaño puede variar de un disco a otro, dichos
+valores están especificados al principio del fichero real.
+Tras estos dos valores vienen los bloques en sí, en la Figura~\ref{Fig: Disco}
+tienes un esquema.
+Una vez creado el disco no se puede cambiar ni su tamaño ni su número de
+bloques; si lo cambias desde el SO anfitrión perderás la información que
+contenga esa unidad.
+\begin{figure}
+	\includegraphics[width=\textwidth]{figuras/disco.eps}
+	\caption{Esquema de un disco.}
+	\label{Fig: Disco}
+\end{figure}
+
+\subsubsection{Creación de nuevos discos}
+Para crear nuevos discos disponemos del método \id{Disco::crearDisco,}
+\marginnote{Ver mv/disco.cpp}
+el cual recibe como parámetros el número del disco, \emph{tamaño de bloque}
+y el \emph{número de bloques} que queremos tenga el nuevo disco.
+
+\section{Arranque y parada}
+La memoria, la unidad de gestión de memoria y el procesador no necesitan ser
+inicializados.
+Ni el teclado ni la pantalla, ya que estos dispositivos son ``estáticos'',
+es decir, siempre hay uno y solamente uno de cada.
+Por el contrario, puede haber un número variable de discos que hay que
+detectar e inicializar en el arranque.
+
+El método \id{MaqVirtual::iniciar} es el responsable del arranque de la
+máquina y el método \id{MaqVirtual::terminar} lo es de su parada.
+\marginnote{Ver mv/mv.cpp}
+El primero inicializa el vector \id{MaqVirtual::discos} utilizando el
+constructor de la clase \id{Disco.}
+El segundo (\id{terminar}) ``limpia'' dicho vector.
+
+
+\section{Modificar la máquina virtual}
+
+\subsection{Añadir instrucciones al procesador}
+Primero hay que añadir la instrucción al tipo enumerado \id{Instrucciones}
+y después modificar el método \id{CPU::ejecutarPaso} añadiendo una nueva
+entrada al \id{switch} que haga lo que corresponda.
+
+Ten en cuenta que para poder utilizar las nuevas instrucciones en el lenguaje
+ensamblador también tendrás que modificar el compilador.
+Además, si no has colocado todas las nuevas instrucciones al final de
+\id{Instrucciones,} tendrás que eliminar los ejecutables y volver a
+compilar los programas, ya que de lo contrario es probable que no funcionen.
+
+\subsection{Añadir nuevos dispositivos}
+Simplemente escribe un fichero de cabecera \emph{nombre.h} y uno de
+implementación \emph{nombre.cpp} donde se defina e implemente la clase
+que representa al dispositivo; después añade una instancia, o varias,
+según corresponda, de dicha clase a la maquina virtual (\id{MaqVirtual}).
+Finalmente, añade el código de inicialización/creación que sea necesario,
+fíjate en el caso de los discos como ejemplo. 

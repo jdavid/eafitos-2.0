@@ -1,0 +1,97 @@
+\documentclass[spanish,a4paper]{book}
+
+
+\usepackage{isolatin1}
+\usepackage{babel}
+\usepackage[dvips]{epsfig}
+\usepackage{moreverb}
+\usepackage{personal}
+
+\setlength\parskip{0.8em}
+\setlength\parindent{0pt}
+
+
+
+\title{EAFITOS\\
+	Una herramienta para aprender sistemas operativos\\
+	(versión 2.0)}
+\author{Juan David Ibáñez Palomar}
+
+
+\begin{document}
+
+\frontmatter
+
+\maketitle
+
+\thispagestyle{empty}
+{\Large AVISO LEGAL}
+
+\begin{tabular}{ll}
+Copyright \copyright & 1995-1999 Omar García Palencia\\
+& 1998-1999 Juan David Ibáñez Palomar
+\end{tabular}
+
+Este documento forma parte del Sistema Operativo Eafitos.
+
+Eafitos es software libre, puedes redistribuirlo y/o modificarlo bajo
+los terminos de la Licencia Publica General GNU (GNU General Public
+License) publicada por la Fundación del Software Libre (Free Software
+Foundation); bien bajo la versión 2 de la licencia, o (a tu elección)
+cualquier versión posterior.
+
+Eafitos es distribuido con la esperanza de que sea útil, pero SIN
+NINGUNA GARANTIA. Mira la Licencia Publica General GNU para más detalles.
+
+Se adjunta una copia de la Licencia Publica General GNU (en versión
+original) en el apendice~\ref{GPL} y una traducción al castellano en el
+apendice~\ref{GPL en castellano}.
+
+
+\newpage
+\thispagestyle{empty}
+\vspace*{0.45\textheight}
+\hspace{0.5\textwidth}
+{\em a mi abuelo Victoriano}
+
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\setcounter{secnumdepth}{0}
+\setcounter{tocdepth}{0}
+\input{prefacio.tex}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+
+
+\mainmatter
+
+\part{Usar y programar Eafitos}
+\input{usuario/uso.tex}
+\input{usuario/programa.tex}
+
+\part{Eafitos por dentro}
+\input{interior/intro.tex}
+\input{interior/mv.tex}
+\input{interior/nucleo.tex}
+\input{interior/memoria.tex}
+\input{interior/hilos.tex}
+\input{interior/es.tex}
+\input{interior/sf.tex}
+\input{entorno/entorno.tex}
+\input{entorno/ensambla.tex}
+
+\part{Apéndices}
+\begin{appendix}
+\input{apendice/fuentes.tex}
+\input{apendice/semaforo.tex}
+\input{apendice/gpl.tex}
+\input{apendice/gpl-es.tex}
+\end{appendix}
+
+
+\backmatter
+
+\end{document}
